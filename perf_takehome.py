@@ -50,9 +50,57 @@ class KernelBuilder:
 
     def build(self, slots: list[tuple[Engine, tuple]], vliw: bool = False):
         # Simple slot packing that just uses one slot per instruction bundle
+        # instrs = []
+        # for engine, slot in slots:
+            # instrs.append({engine: [slot]})
+        # return instrs
+
+
         instrs = []
+        curr_instr = {
+            "alu": [],
+            "valu": [],
+            "load": [],
+            "store": [],
+        }
+        slot_counts = {
+            "alu": 0,
+            "valu": 0,
+            "load": 0,
+            "store": 0,
+        }
+        curr_used_operands = set()
+
         for engine, slot in slots:
-            instrs.append({engine: [slot]})
+            has_slot_space = slot_counts[engine] < SLOT_LIMITS[engine]
+            new_operands = set(slot[1:])
+            has_valid_dependence = new_operands & curr_used_operands
+
+            # if slot_counts[engine] < SLOT_LIMITS[engine]:
+            if not has_slot_space or not has_valid_dependence:
+                instrs.append(curr_instr)
+
+                curr_instr = {
+                    "alu": [],
+                    "valu": [],
+                    "load": [],
+                    "store": [],
+                }
+                slot_counts["alu"] = 0
+                slot_counts["valu"] = 0
+                slot_counts["load"] = 0
+                slot_counts["store"] = 0
+                curr_used_operands = set()
+
+            slot_counts[engine]+=1
+            curr_instr[engine].append(slot)
+            curr_used_operands.update(new_operands)
+
+
+        if curr_instr["alu"] or curr_instr["valu"] or curr_instr["load"] or curr_instr["store"]:
+            instrs.append(curr_instr)
+        # instrs.append({engine: [slot]})
+        print(instrs)
         return instrs
 
     def add(self, instr_list, engine, slot):
