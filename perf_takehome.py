@@ -48,13 +48,8 @@ class KernelBuilder:
     def debug_info(self):
         return DebugInfo(scratch_map=self.scratch_debug)
 
-    def build(self, slots: list[tuple[Engine, tuple]], vliw: bool = False):
-        # Simple slot packing that just uses one slot per instruction bundle
-        # instrs = []
-        # for engine, slot in slots:
-            # instrs.append({engine: [slot]})
-        # return instrs
-
+    def build(self, slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
+        # simple slot packing that packs consecutive slots together (no reordering)
 
         instrs = []
         curr_instr = {
@@ -74,10 +69,9 @@ class KernelBuilder:
         for engine, slot in slots:
             has_slot_space = slot_counts[engine] < SLOT_LIMITS[engine]
             new_operands = set(slot[1:])
-            has_valid_dependence = new_operands & curr_used_operands
+            has_invalid_dependence = (new_operands & curr_used_operands) - const_operands
 
-            # if slot_counts[engine] < SLOT_LIMITS[engine]:
-            if not has_slot_space or not has_valid_dependence:
+            if not has_slot_space or has_invalid_dependence:
                 instrs.append(curr_instr)
 
                 curr_instr = {
@@ -99,8 +93,7 @@ class KernelBuilder:
 
         if curr_instr["alu"] or curr_instr["valu"] or curr_instr["load"] or curr_instr["store"]:
             instrs.append(curr_instr)
-        # instrs.append({engine: [slot]})
-        print(instrs)
+
         return instrs
 
     def add(self, instr_list, engine, slot):
@@ -228,7 +221,9 @@ class KernelBuilder:
         setup.append(("valu", ("vbroadcast", tmp_0xFD7046C5, const_0xFD7046C5)))
         setup.append(("valu", ("vbroadcast", tmp_0xB55A4F09, const_0xB55A4F09)))
 
-        all_instrs.extend(self.build(setup))
+        const_operands = {tmp_0x7ED55D16, tmp_0xC761C23C, tmp_0x165667B1, tmp_0xD3A2646C, tmp_0xFD7046C5, tmp_0xB55A4F09, const_zero, const_one, const_two, const_three, const_five, const_nine, const_twelve, const_sixteen, const_nineteen, forest_values}
+
+        all_instrs.extend(self.build(setup, const_operands))
 
         for walker_idx in range(0, num_walkers, group_size):
 
@@ -243,7 +238,7 @@ class KernelBuilder:
                 walker_group_prologue.append(("alu", ("+", tmp_addrs[i], self.scratch["inp_values_p"], walker)))
                 walker_group_prologue.append(("load", ("vload", tmp_vals[i], tmp_addrs[i])))
 
-            all_instrs.extend(self.build(walker_group_prologue))
+            all_instrs.extend(self.build(walker_group_prologue, const_operands))
             walker_group_prologue = []
 
             for round in range(rounds):
@@ -318,7 +313,7 @@ class KernelBuilder:
                         hot_loop.append(("valu", ("+", tmp_idxs[i], tmp_idxs[i], tmp_val_paritys[i])))
 
 
-                all_instrs.extend(self.build(hot_loop))
+                all_instrs.extend(self.build(hot_loop, const_operands))
                 hot_loop = []
 
 
@@ -332,7 +327,7 @@ class KernelBuilder:
                 walker_group_epilogue.append(("alu", ("+", tmp_addrs[i], self.scratch["inp_values_p"], walker)))
                 walker_group_epilogue.append(("store", ("vstore", tmp_addrs[i], tmp_vals[i])))
 
-            all_instrs.extend(self.build(walker_group_epilogue))
+            all_instrs.extend(self.build(walker_group_epilogue, const_operands))
             walker_group_epilogue = []
 
 
