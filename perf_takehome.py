@@ -116,7 +116,7 @@ class KernelBuilder:
         return slots
 
     def build_kernel(
-        self, forest_height: int, n_nodes: int, batch_size: int, rounds: int
+        self, forest_height: int, n_nodes: int, num_walkers: int, rounds: int
     ):
         """
         Like reference_kernel2 but building actual instructions.
@@ -140,15 +140,22 @@ class KernelBuilder:
         # tmp_addr = self.alloc_scratch("tmp_addr")
         # tmp_val_parity = self.alloc_scratch("tmp_val_parity")
 
-        tmp1 = self.alloc_scratch("tmp1", VLEN)
-        tmp2 = self.alloc_scratch("tmp2", VLEN)
-        tmp3 = self.alloc_scratch("tmp3", VLEN)
+        # number of walker processed at a time
+        group_size = 64
+
+        tmp1s = []
+        tmp2s = []
+        tmp3s = []
+        for walker_group_idx in range(group_size//VLEN):
+            tmp1s.append(self.alloc_scratch(None, VLEN))
+            tmp2s.append(self.alloc_scratch(None, VLEN))
+            tmp3s.append(self.alloc_scratch(None, VLEN))
 
         # Scratch space addresses
         init_vars = [
             "rounds",
             "n_nodes",
-            "batch_size",
+            "num_walkers",
             "forest_height",
             "forest_values_p",
             "inp_indices_p",
@@ -157,8 +164,8 @@ class KernelBuilder:
         for v in init_vars:
             self.alloc_scratch(v, 1)
         for i, v in enumerate(init_vars):
-            self.add("load", ("const", tmp1, i))
-            self.add("load", ("load", self.scratch[v], tmp1))
+            self.add("load", ("const", tmp1s[0], i))
+            self.add("load", ("load", self.scratch[v], tmp1s[0]))
 
         const_zero = self.alloc_scratch(0, VLEN)
         const_one = self.alloc_scratch(1, VLEN)
@@ -183,12 +190,17 @@ class KernelBuilder:
         body.append(("valu", ("vbroadcast", const_nineteen, self.scratch_const(19))))
         body.append(("valu", ("vbroadcast", forest_values, self.scratch["forest_values_p"])))
 
-        tmp_idx = self.alloc_scratch("tmp_idx", VLEN)
-        tmp_val = self.alloc_scratch("tmp_val", VLEN)
-        tmp_node_val = self.alloc_scratch("tmp_node_val", VLEN)
-        tmp_addr = self.alloc_scratch("tmp_addr", VLEN)
-        tmp_val_parity = self.alloc_scratch("tmp_val_parity", VLEN)
-
+        tmp_idxs = []
+        tmp_vals = []
+        tmp_node_vals = []
+        tmp_addrs = []
+        tmp_val_paritys = []
+        for walker_group_idx in range(group_size//VLEN):
+            tmp_idxs.append(self.alloc_scratch(None, VLEN))
+            tmp_vals.append(self.alloc_scratch(None, VLEN))
+            tmp_node_vals.append(self.alloc_scratch(None, VLEN))
+            tmp_addrs.append(self.alloc_scratch(None, VLEN))
+            tmp_val_paritys.append(self.alloc_scratch(None, VLEN))
 
         tmp_0x7ED55D16 = self.alloc_scratch("tmp_0x7ED55D16", VLEN)
         tmp_0xC761C23C = self.alloc_scratch("tmp_0xC761C23C", VLEN)
@@ -211,68 +223,78 @@ class KernelBuilder:
         body.append(("valu", ("vbroadcast", tmp_0xFD7046C5, const_0xFD7046C5)))
         body.append(("valu", ("vbroadcast", tmp_0xB55A4F09, const_0xB55A4F09)))
 
-        for walker_idx in range(0, batch_size, VLEN):
-            walker = self.scratch_const(walker_idx)
+        for walker_idx in range(0, num_walkers, group_size):
 
-            # idx = mem[inp_indices_p + i]
-            body.append(("alu", ("+", tmp_addr, self.scratch["inp_indices_p"], walker)))
-            body.append(("load", ("vload", tmp_idx, tmp_addr)))
-            # val = mem[inp_values_p + i]
-            body.append(("alu", ("+", tmp_addr, self.scratch["inp_values_p"], walker)))
-            body.append(("load", ("vload", tmp_val, tmp_addr)))
+            # load index for every walker in group_size
+            # for i in range(walker_idx, walker_idx+group_size, VLEN):
+            for i in range(group_size//VLEN):
+                walker = self.scratch_const(walker_idx+VLEN*i)
+
+                # idx = mem[inp_indices_p + i]
+                body.append(("alu", ("+", tmp_addrs[i], self.scratch["inp_indices_p"], walker)))
+                body.append(("load", ("vload", tmp_idxs[i], tmp_addrs[i])))
+                # val = mem[inp_values_p + i]
+                body.append(("alu", ("+", tmp_addrs[i], self.scratch["inp_values_p"], walker)))
+                body.append(("load", ("vload", tmp_vals[i], tmp_addrs[i])))
 
             for round in range(rounds):
-                # node_val = mem[forest_values_p + idx]
-                body.append(("valu", ("+", tmp_addr, forest_values, tmp_idx)))
-                for lane in range(VLEN):
-                    body.append(("load", ("load", tmp_node_val+lane, tmp_addr+lane)))
+                for i in range(group_size//VLEN):
+                # for i in range(walker_idx, walker_idx+group_size, VLEN):
+                    # node_val = mem[forest_values_p + idx]
+                    body.append(("valu", ("+", tmp_addrs[i], forest_values, tmp_idxs[i])))
+                    for lane in range(VLEN):
+                        body.append(("load", ("load", tmp_node_vals[i]+lane, tmp_addrs[i]+lane)))
 
-                # val = myhash(val ^ node_val)
-                body.append(("valu", ("^", tmp_val, tmp_val, tmp_node_val)))
+                    # val = myhash(val ^ node_val)
+                    body.append(("valu", ("^", tmp_vals[i], tmp_vals[i], tmp_node_vals[i])))
 
-                body.append(("valu", ("+", tmp1, tmp_val, tmp_0x7ED55D16)))
-                body.append(("valu", ("<<", tmp2, tmp_val, const_twelve)))
-                body.append(("valu", ("+", tmp_val, tmp1, tmp2)))
+                    body.append(("valu", ("+", tmp1s[i], tmp_vals[i], tmp_0x7ED55D16)))
+                    body.append(("valu", ("<<", tmp2s[i], tmp_vals[i], const_twelve)))
+                    body.append(("valu", ("+", tmp_vals[i], tmp1s[i], tmp2s[i])))
 
-                body.append(("valu", ("^", tmp1, tmp_val, tmp_0xC761C23C)))
-                body.append(("valu", (">>", tmp2, tmp_val, const_nineteen)))
-                body.append(("valu", ("^", tmp_val, tmp1, tmp2)))
+                    body.append(("valu", ("^", tmp1s[i], tmp_vals[i], tmp_0xC761C23C)))
+                    body.append(("valu", (">>", tmp2s[i], tmp_vals[i], const_nineteen)))
+                    body.append(("valu", ("^", tmp_vals[i], tmp1s[i], tmp2s[i])))
 
-                body.append(("valu", ("+", tmp1, tmp_val, tmp_0x165667B1)))
-                body.append(("valu", ("<<", tmp2, tmp_val, const_five)))
-                body.append(("valu", ("+", tmp_val, tmp1, tmp2)))
+                    body.append(("valu", ("+", tmp1s[i], tmp_vals[i], tmp_0x165667B1)))
+                    body.append(("valu", ("<<", tmp2s[i], tmp_vals[i], const_five)))
+                    body.append(("valu", ("+", tmp_vals[i], tmp1s[i], tmp2s[i])))
 
-                body.append(("valu", ("+", tmp1, tmp_val, tmp_0xD3A2646C)))
-                body.append(("valu", ("<<", tmp2, tmp_val, const_nine)))
-                body.append(("valu", ("^", tmp_val, tmp1, tmp2)))
+                    body.append(("valu", ("+", tmp1s[i], tmp_vals[i], tmp_0xD3A2646C)))
+                    body.append(("valu", ("<<", tmp2s[i], tmp_vals[i], const_nine)))
+                    body.append(("valu", ("^", tmp_vals[i], tmp1s[i], tmp2s[i])))
 
-                body.append(("valu", ("+", tmp1, tmp_val, tmp_0xFD7046C5)))
-                body.append(("valu", ("<<", tmp2, tmp_val, const_three)))
-                body.append(("valu", ("+", tmp_val, tmp1, tmp2)))
+                    body.append(("valu", ("+", tmp1s[i], tmp_vals[i], tmp_0xFD7046C5)))
+                    body.append(("valu", ("<<", tmp2s[i], tmp_vals[i], const_three)))
+                    body.append(("valu", ("+", tmp_vals[i], tmp1s[i], tmp2s[i])))
 
-                body.append(("valu", ("^", tmp1, tmp_val, tmp_0xB55A4F09)))
-                body.append(("valu", (">>", tmp2, tmp_val, const_sixteen)))
-                body.append(("valu", ("^", tmp_val, tmp1, tmp2)))
+                    body.append(("valu", ("^", tmp1s[i], tmp_vals[i], tmp_0xB55A4F09)))
+                    body.append(("valu", (">>", tmp2s[i], tmp_vals[i], const_sixteen)))
+                    body.append(("valu", ("^", tmp_vals[i], tmp1s[i], tmp2s[i])))
 
-                # update index to next tree level or loop back up
-                if round == forest_height:
-                    # idx = 0
-                    body.append(("valu", ("&", tmp_idx, tmp_idx, const_zero)));
-                else:
-                    # idx = 2*idx + 1 + val&1
-                    body.append(("valu", ("&", tmp_val_parity, tmp_val, const_one)));
-                    body.append(("valu", ("*", tmp_idx, tmp_idx, const_two)))
-                    body.append(("valu", ("+", tmp_idx, tmp_idx, const_one)))
-                    body.append(("valu", ("+", tmp_idx, tmp_idx, tmp_val_parity)))
+                    # update index to next tree level or loop back up
+                    if round == forest_height:
+                        # idx = 0
+                        body.append(("valu", ("&", tmp_idxs[i], tmp_idxs[i], const_zero)));
+                    else:
+                        # idx = 2*idx + 1 + val&1
+                        body.append(("valu", ("&", tmp_val_paritys[i], tmp_vals[i], const_one)));
+                        body.append(("valu", ("*", tmp_idxs[i], tmp_idxs[i], const_two)))
+                        body.append(("valu", ("+", tmp_idxs[i], tmp_idxs[i], const_one)))
+                        body.append(("valu", ("+", tmp_idxs[i], tmp_idxs[i], tmp_val_paritys[i])))
 
 
 
-            # mem[inp_indices_p + i] = idx
-            body.append(("alu", ("+", tmp_addr, self.scratch["inp_indices_p"], walker)))
-            body.append(("store", ("vstore", tmp_addr, tmp_idx)))
-            # mem[inp_values_p + i] = val
-            body.append(("alu", ("+", tmp_addr, self.scratch["inp_values_p"], walker)))
-            body.append(("store", ("vstore", tmp_addr, tmp_val)))
+            # for i in range(walker_idx, walker_idx+group_size, VLEN):
+            for i in range(group_size//VLEN):
+                walker = self.scratch_const(walker_idx+VLEN*i)
+
+                # mem[inp_indices_p + i] = idx
+                body.append(("alu", ("+", tmp_addrs[i], self.scratch["inp_indices_p"], walker)))
+                body.append(("store", ("vstore", tmp_addrs[i], tmp_idxs[i])))
+                # mem[inp_values_p + i] = val
+                body.append(("alu", ("+", tmp_addrs[i], self.scratch["inp_values_p"], walker)))
+                body.append(("store", ("vstore", tmp_addrs[i], tmp_vals[i])))
 
         body_instrs = self.build(body)
         self.instrs.extend(body_instrs)
@@ -284,15 +306,15 @@ BASELINE = 147734
 def do_kernel_test(
     forest_height: int,
     rounds: int,
-    batch_size: int,
+    num_walkers: int,
     seed: int = 123,
     trace: bool = False,
     prints: bool = False,
 ):
-    print(f"{forest_height=}, {rounds=}, {batch_size=}")
+    print(f"{forest_height=}, {rounds=}, {num_walkers=}")
     random.seed(seed)
     forest = Tree.generate(forest_height)
-    inp = Input.generate(forest, batch_size, rounds)
+    inp = Input.generate(forest, num_walkers, rounds)
     mem = build_mem_image(forest, inp)
 
     kb = KernelBuilder()
