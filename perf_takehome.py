@@ -204,6 +204,10 @@ class KernelBuilder:
         const_twelve = self.alloc_scratch(12, VLEN)
         const_sixteen = self.alloc_scratch(16, VLEN)
         const_nineteen = self.alloc_scratch(19, VLEN)
+        const_4096 = self.alloc_scratch(4096, VLEN)
+        const_32 = self.alloc_scratch(32, VLEN)
+        const_8 = self.alloc_scratch(8, VLEN)
+        const_512 = self.alloc_scratch(512, VLEN)
 
         forest_values = self.alloc_scratch(self.scratch["forest_values_p"], VLEN)
 
@@ -216,6 +220,10 @@ class KernelBuilder:
         setup.append(("valu", ("vbroadcast", const_twelve, self.scratch_const(setup, 12))))
         setup.append(("valu", ("vbroadcast", const_sixteen, self.scratch_const(setup, 16))))
         setup.append(("valu", ("vbroadcast", const_nineteen, self.scratch_const(setup, 19))))
+        setup.append(("valu", ("vbroadcast", const_4096, self.scratch_const(setup, 4096))))
+        setup.append(("valu", ("vbroadcast", const_32, self.scratch_const(setup, 32))))
+        setup.append(("valu", ("vbroadcast", const_8, self.scratch_const(setup, 8))))
+        setup.append(("valu", ("vbroadcast", const_512, self.scratch_const(setup, 512))))
         setup.append(("valu", ("vbroadcast", forest_values, self.scratch["forest_values_p"])))
 
         tmp_idxs = []
@@ -257,7 +265,7 @@ class KernelBuilder:
         setup.append(("valu", ("vbroadcast", tmp_0xFD7046C5, const_0xFD7046C5)))
         setup.append(("valu", ("vbroadcast", tmp_0xB55A4F09, const_0xB55A4F09)))
 
-        const_operands = {tmp_0x7ED55D16, tmp_0xC761C23C, tmp_0x165667B1, tmp_0xD3A2646C, tmp_0xFD7046C5, tmp_0xB55A4F09, const_zero, const_one, const_two, const_three, const_five, const_nine, const_twelve, const_sixteen, const_nineteen, forest_values}
+        const_operands = {tmp_0x7ED55D16, tmp_0xC761C23C, tmp_0x165667B1, tmp_0xD3A2646C, tmp_0xFD7046C5, tmp_0xB55A4F09, const_zero, const_one, const_two, const_three, const_five, const_nine, const_twelve, const_sixteen, const_nineteen, const_4096, const_32, const_8, const_512, forest_values}
 
         all_instrs.extend(self.build(setup, const_operands))
         
@@ -279,17 +287,19 @@ class KernelBuilder:
 
         def gen_hash_and_update_instrs(round, phase):
             instrs = []
+
             # val = myhash(val ^ node_val)
+
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("^", tmp_vals[phase][i], tmp_vals[phase][i], tmp_node_vals[phase][i])))
 
+            # stage 1
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("+", tmp1s[phase][i], tmp_vals[phase][i], tmp_0x7ED55D16)))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("<<", tmp2s[phase][i], tmp_vals[phase][i], const_twelve)))
-            for i in range(group_size//VLEN):
-                instrs.append(("valu", ("+", tmp_vals[phase][i], tmp1s[phase][i], tmp2s[phase][i])))
+                instrs.append(("valu", ("multiply_add", tmp_vals[phase][i], tmp_vals[phase][i], const_4096, tmp1s[phase][i])))
 
+            # stage 2
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("^", tmp1s[phase][i], tmp_vals[phase][i], tmp_0xC761C23C)))
             for i in range(group_size//VLEN):
@@ -297,13 +307,13 @@ class KernelBuilder:
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("^", tmp_vals[phase][i], tmp1s[phase][i], tmp2s[phase][i])))
 
+            # stage 3
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("+", tmp1s[phase][i], tmp_vals[phase][i], tmp_0x165667B1)))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("<<", tmp2s[phase][i], tmp_vals[phase][i], const_five)))
-            for i in range(group_size//VLEN):
-                instrs.append(("valu", ("+", tmp_vals[phase][i], tmp1s[phase][i], tmp2s[phase][i])))
+                instrs.append(("valu", ("multiply_add", tmp_vals[phase][i], tmp_vals[phase][i], const_32, tmp1s[phase][i])))
 
+            # stage 4
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("+", tmp1s[phase][i], tmp_vals[phase][i], tmp_0xD3A2646C)))
             for i in range(group_size//VLEN):
@@ -311,13 +321,13 @@ class KernelBuilder:
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("^", tmp_vals[phase][i], tmp1s[phase][i], tmp2s[phase][i])))
 
+            # stage 5
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("+", tmp1s[phase][i], tmp_vals[phase][i], tmp_0xFD7046C5)))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("<<", tmp2s[phase][i], tmp_vals[phase][i], const_three)))
-            for i in range(group_size//VLEN):
-                instrs.append(("valu", ("+", tmp_vals[phase][i], tmp1s[phase][i], tmp2s[phase][i])))
+                instrs.append(("valu", ("multiply_add", tmp_vals[phase][i], tmp_vals[phase][i], const_8, tmp1s[phase][i])))
 
+                # stage 6
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("^", tmp1s[phase][i], tmp_vals[phase][i], tmp_0xB55A4F09)))
             for i in range(group_size//VLEN):
@@ -335,9 +345,7 @@ class KernelBuilder:
                 for i in range(group_size//VLEN):
                     instrs.append(("valu", ("&", tmp_val_paritys[phase][i], tmp_vals[phase][i], const_one)));
                 for i in range(group_size//VLEN):
-                    instrs.append(("valu", ("*", tmp_idxs[phase][i], tmp_idxs[phase][i], const_two)))
-                for i in range(group_size//VLEN):
-                    instrs.append(("valu", ("+", tmp_idxs[phase][i], tmp_idxs[phase][i], const_one)))
+                    instrs.append(("valu", ("multiply_add", tmp_idxs[phase][i], tmp_idxs[phase][i], const_two, const_one)))
                 for i in range(group_size//VLEN):
                     instrs.append(("valu", ("+", tmp_idxs[phase][i], tmp_idxs[phase][i], tmp_val_paritys[phase][i])))
 
