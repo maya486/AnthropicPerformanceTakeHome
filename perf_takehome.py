@@ -48,6 +48,31 @@ class KernelBuilder:
     def debug_info(self):
         return DebugInfo(scratch_map=self.scratch_debug)
 
+    def merge_independent_instr_streams(self, list_a, list_b):
+        instrs = []
+        for i in range(min(len(list_a), len(list_b))):
+            curr_instr = {
+                "alu": [],
+                "valu": [],
+                "load": [],
+                "store": [],
+            }
+            curr_instr["alu"].extend(list_a[i]["alu"])
+            curr_instr["alu"].extend(list_b[i]["alu"])
+            curr_instr["valu"].extend(list_a[i]["valu"])
+            curr_instr["valu"].extend(list_b[i]["valu"])
+            curr_instr["load"].extend(list_a[i]["load"])
+            curr_instr["load"].extend(list_b[i]["load"])
+            curr_instr["store"].extend(list_a[i]["store"])
+            curr_instr["store"].extend(list_b[i]["store"])
+            instrs.append(curr_instr)
+        if len(list_a) < len(list_b):
+            instrs.extend(list_b[len(list_a):])
+        elif len(list_b) < len(list_a):
+            instrs.extend(list_a[len(list_b):])
+        return instrs
+
+
     def build(self, slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
         # simple slot packing that packs consecutive slots together (no reordering)
 
@@ -237,23 +262,22 @@ class KernelBuilder:
         all_instrs.extend(self.build(setup, const_operands))
         
 
-        def gen_index_calculation_instrs(ts, round, phase):
-            # print("index: ts ", ts, " round ", round, " phase ", phase)
+        def gen_index_calculation_instrs(phase):
+            # addr = forest_values_p + idx
             instrs = []
             for i in range(group_size//VLEN):
                 instrs.append(("valu", ("+", tmp_addrs[phase][i], forest_values, tmp_idxs[phase][i])))
             return instrs 
 
-        def gen_load_instrs(ts, round, phase):
-            print("load: ts ", ts, " round ", round, " phase ", phase)
+        def gen_load_instrs(phase):
+            # node_val = mem[addr]
             instrs = []
             for i in range(group_size//VLEN):
                 for lane in range(VLEN):
                     instrs.append(("load", ("load", tmp_node_vals[phase][i]+lane, tmp_addrs[phase][i]+lane)))
             return instrs 
 
-        def gen_hash_and_update_instrs(ts, round, phase):
-            print("hash: ts ", ts, " round ", round, " phase ", phase)
+        def gen_hash_and_update_instrs(round, phase):
             instrs = []
             # val = myhash(val ^ node_val)
             for i in range(group_size//VLEN):
@@ -321,8 +345,6 @@ class KernelBuilder:
 
 
 
-
-
         for walker_idx in range(0, num_walkers, 2*group_size):
 
             # load index for every walker in group_size
@@ -337,26 +359,27 @@ class KernelBuilder:
                     walker_group_prologue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_values_p"], walker)))
                     walker_group_prologue.append(("load", ("vload", tmp_vals[phase][i], tmp_addrs[phase][i])))
 
-            walker_group_prologue.extend(gen_index_calculation_instrs(0, 0, 0))
-            walker_group_prologue.extend(gen_load_instrs(0, 0, 0))
+            walker_group_prologue.extend(gen_index_calculation_instrs(0))
+            walker_group_prologue.extend(gen_load_instrs(0))
 
             all_instrs.extend(self.build(walker_group_prologue, const_operands))
             walker_group_prologue = []
 
             for round in range(1, 2*rounds):
-                hot_loop.extend(gen_hash_and_update_instrs(round, (round-1)//2, (round-1)%2))
-                hot_loop.extend(gen_index_calculation_instrs(round, round, round%2))
-                hot_loop.extend(gen_load_instrs(round, round, round%2))
 
+                hash_and_update_instrs = gen_hash_and_update_instrs((round-1)//2, (round-1)%2)
+                index_instrs = gen_index_calculation_instrs(round%2)
+                packed_valu_instrs = self.build(index_instrs + hash_and_update_instrs, const_operands)
 
-                # node_val = mem[forest_values_p + idx]
+                packed_load_instrs = self.build(gen_load_instrs(round%2), const_operands)
 
-                # val = myhash(val ^ node_val)
+                # the empty instr added before the loads is to make sure the first cycle executes some
+                # index calculations and only after do the loads dependent on them start
+                hot_loop = self.merge_independent_instr_streams(packed_valu_instrs, [{"alu": [], "valu": [], "store": [], "load": []}] + packed_load_instrs)
 
-                all_instrs.extend(self.build(hot_loop, const_operands))
-                hot_loop = []
+                all_instrs.extend(hot_loop)
 
-            walker_group_epilogue.extend(gen_hash_and_update_instrs(rounds, 2*rounds-1, (rounds-1)%2))
+            walker_group_epilogue.extend(gen_hash_and_update_instrs(2*rounds-1, (rounds-1)%2))
 
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
