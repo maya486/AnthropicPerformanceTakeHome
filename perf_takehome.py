@@ -74,7 +74,7 @@ class KernelBuilder:
 
 
     def build(self, slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
-        # simple slot packing that packs consecutive slots together (no reordering)
+        # simple slot packing that packs consecutive instructions together (no reordering)
 
         instrs = []
         curr_instr = {
@@ -89,12 +89,17 @@ class KernelBuilder:
             "load": 0,
             "store": 0,
         }
-        curr_used_operands = set()
+        curr_read_operands = set()
+        curr_write_operands = set()
 
         for engine, slot in slots:
             has_slot_space = slot_counts[engine] < SLOT_LIMITS[engine]
             new_operands = set(slot[1:])
-            has_invalid_dependence = (new_operands & curr_used_operands) - const_operands
+            new_write_operands = set([slot[1]])
+            new_read_operands = set(slot[2:])
+
+            operand_intersection = (new_write_operands & curr_write_operands) | (new_write_operands & curr_read_operands) | (new_read_operands & curr_write_operands)
+            has_invalid_dependence = operand_intersection - const_operands
 
             if not has_slot_space or has_invalid_dependence:
                 instrs.append(curr_instr)
@@ -109,11 +114,13 @@ class KernelBuilder:
                 slot_counts["valu"] = 0
                 slot_counts["load"] = 0
                 slot_counts["store"] = 0
-                curr_used_operands = set()
+                curr_read_operands = set()
+                curr_write_operands = set()
 
             slot_counts[engine]+=1
             curr_instr[engine].append(slot)
-            curr_used_operands.update(new_operands)
+            curr_read_operands.update(new_read_operands)
+            curr_write_operands.update(new_write_operands)
 
 
         if curr_instr["alu"] or curr_instr["valu"] or curr_instr["load"] or curr_instr["store"]:
@@ -192,8 +199,9 @@ class KernelBuilder:
         for v in init_vars:
             self.alloc_scratch(v, 1)
         for i, v in enumerate(init_vars):
-            setup.append(("load", ("const", tmp1s[0][0], i)))
-            setup.append(("load", ("load", self.scratch[v], tmp1s[0][0])))
+            setup.append(("load", ("const", tmp1s[0][i], i)))
+        for i, v in enumerate(init_vars):
+            setup.append(("load", ("load", self.scratch[v], tmp1s[0][i])))
 
         const_zero = self.alloc_scratch(0, VLEN)
         const_one = self.alloc_scratch(1, VLEN)
@@ -209,21 +217,35 @@ class KernelBuilder:
         const_8 = self.alloc_scratch(8, VLEN)
         const_512 = self.alloc_scratch(512, VLEN)
 
+        tmp_scalar_const_zero = self.scratch_const(setup, 0)
+        tmp_scalar_const_one = self.scratch_const(setup, 1)
+        tmp_scalar_const_two = self.scratch_const(setup, 2)
+        tmp_scalar_const_three = self.scratch_const(setup, 3)
+        tmp_scalar_const_five = self.scratch_const(setup, 5)
+        tmp_scalar_const_nine = self.scratch_const(setup, 9)
+        tmp_scalar_const_twelve = self.scratch_const(setup, 12)
+        tmp_scalar_const_sixteen = self.scratch_const(setup, 16)
+        tmp_scalar_const_nineteen = self.scratch_const(setup, 19)
+        tmp_scalar_const_4096 = self.scratch_const(setup, 4096)
+        tmp_scalar_const_32 = self.scratch_const(setup, 32)
+        tmp_scalar_const_8 = self.scratch_const(setup, 8)
+        tmp_scalar_const_512 = self.scratch_const(setup, 512)
+
         forest_values = self.alloc_scratch(self.scratch["forest_values_p"], VLEN)
 
-        setup.append(("valu", ("vbroadcast", const_zero, self.scratch_const(setup, 0))))
-        setup.append(("valu", ("vbroadcast", const_one, self.scratch_const(setup, 1))))
-        setup.append(("valu", ("vbroadcast", const_two, self.scratch_const(setup, 2))))
-        setup.append(("valu", ("vbroadcast", const_three, self.scratch_const(setup, 3))))
-        setup.append(("valu", ("vbroadcast", const_five, self.scratch_const(setup, 5))))
-        setup.append(("valu", ("vbroadcast", const_nine, self.scratch_const(setup, 9))))
-        setup.append(("valu", ("vbroadcast", const_twelve, self.scratch_const(setup, 12))))
-        setup.append(("valu", ("vbroadcast", const_sixteen, self.scratch_const(setup, 16))))
-        setup.append(("valu", ("vbroadcast", const_nineteen, self.scratch_const(setup, 19))))
-        setup.append(("valu", ("vbroadcast", const_4096, self.scratch_const(setup, 4096))))
-        setup.append(("valu", ("vbroadcast", const_32, self.scratch_const(setup, 32))))
-        setup.append(("valu", ("vbroadcast", const_8, self.scratch_const(setup, 8))))
-        setup.append(("valu", ("vbroadcast", const_512, self.scratch_const(setup, 512))))
+        setup.append(("valu", ("vbroadcast", const_zero, tmp_scalar_const_zero)))
+        setup.append(("valu", ("vbroadcast", const_one, tmp_scalar_const_one)))
+        setup.append(("valu", ("vbroadcast", const_two, tmp_scalar_const_two)))
+        setup.append(("valu", ("vbroadcast", const_three, tmp_scalar_const_three)))
+        setup.append(("valu", ("vbroadcast", const_five, tmp_scalar_const_five)))
+        setup.append(("valu", ("vbroadcast", const_nine, tmp_scalar_const_nine)))
+        setup.append(("valu", ("vbroadcast", const_twelve, tmp_scalar_const_twelve)))
+        setup.append(("valu", ("vbroadcast", const_sixteen, tmp_scalar_const_sixteen)))
+        setup.append(("valu", ("vbroadcast", const_nineteen, tmp_scalar_const_nineteen)))
+        setup.append(("valu", ("vbroadcast", const_4096, tmp_scalar_const_4096)))
+        setup.append(("valu", ("vbroadcast", const_32, tmp_scalar_const_32)))
+        setup.append(("valu", ("vbroadcast", const_8, tmp_scalar_const_8)))
+        setup.append(("valu", ("vbroadcast", const_512, tmp_scalar_const_512)))
         setup.append(("valu", ("vbroadcast", forest_values, self.scratch["forest_values_p"])))
 
         tmp_idxs = []
@@ -264,6 +286,16 @@ class KernelBuilder:
         setup.append(("valu", ("vbroadcast", tmp_0xD3A2646C, const_0xD3A2646C)))
         setup.append(("valu", ("vbroadcast", tmp_0xFD7046C5, const_0xFD7046C5)))
         setup.append(("valu", ("vbroadcast", tmp_0xB55A4F09, const_0xB55A4F09)))
+
+        walker_consts = []
+        for walker_idx in range(0, num_walkers, 2*group_size):
+            walker_idx_idx = (int)(walker_idx/(2*group_size))
+            walker_consts.append([])
+            for phase in range(num_phases):
+                walker_consts[walker_idx_idx].append([])
+                for i in range(group_size//VLEN):
+                    walker_consts[walker_idx_idx][phase].append(self.scratch_const(setup, group_size*phase+walker_idx+VLEN*i))
+
 
         const_operands = {tmp_0x7ED55D16, tmp_0xC761C23C, tmp_0x165667B1, tmp_0xD3A2646C, tmp_0xFD7046C5, tmp_0xB55A4F09, const_zero, const_one, const_two, const_three, const_five, const_nine, const_twelve, const_sixteen, const_nineteen, const_4096, const_32, const_8, const_512, forest_values}
 
@@ -352,19 +384,27 @@ class KernelBuilder:
             return instrs 
 
 
-
         for walker_idx in range(0, num_walkers, 2*group_size):
 
+            walker_idx_idx = (int)(walker_idx/(2*group_size))
+
             # load index for every walker in group_size
+            # idx = mem[inp_indices_p + i]
+            # val = mem[inp_values_p + i]
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker = self.scratch_const(walker_group_prologue, group_size*phase+walker_idx+VLEN*i)
+                    walker_group_prologue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_indices_p"], walker_consts[walker_idx_idx][phase][i])))
 
-                    # idx = mem[inp_indices_p + i]
-                    walker_group_prologue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_indices_p"], walker)))
+            for phase in range(num_phases):
+                for i in range(group_size//VLEN):
                     walker_group_prologue.append(("load", ("vload", tmp_idxs[phase][i], tmp_addrs[phase][i])))
-                    # val = mem[inp_values_p + i]
-                    walker_group_prologue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_values_p"], walker)))
+
+            for phase in range(num_phases):
+                for i in range(group_size//VLEN):
+                    walker_group_prologue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_values_p"], walker_consts[walker_idx_idx][phase][i])))
+
+            for phase in range(num_phases):
+                for i in range(group_size//VLEN):
                     walker_group_prologue.append(("load", ("vload", tmp_vals[phase][i], tmp_addrs[phase][i])))
 
             walker_group_prologue.extend(gen_index_calculation_instrs(0))
@@ -389,15 +429,22 @@ class KernelBuilder:
 
             walker_group_epilogue.extend(gen_hash_and_update_instrs(2*rounds-1, (rounds-1)%2))
 
+            # mem[inp_indices_p + i] = idx
+            # mem[inp_values_p + i] = val
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker = self.scratch_const(walker_group_epilogue, group_size*phase+walker_idx+VLEN*i)
+                    walker_group_epilogue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_indices_p"], walker_consts[walker_idx_idx][phase][i])))
 
-                    # mem[inp_indices_p + i] = idx
-                    walker_group_epilogue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_indices_p"], walker)))
+            for phase in range(num_phases):
+                for i in range(group_size//VLEN):
                     walker_group_epilogue.append(("store", ("vstore", tmp_addrs[phase][i], tmp_idxs[phase][i])))
-                    # mem[inp_values_p + i] = val
-                    walker_group_epilogue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_values_p"], walker)))
+
+            for phase in range(num_phases):
+                for i in range(group_size//VLEN):
+                    walker_group_epilogue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_values_p"], walker_consts[walker_idx_idx][phase][i])))
+
+            for phase in range(num_phases):
+                for i in range(group_size//VLEN):
                     walker_group_epilogue.append(("store", ("vstore", tmp_addrs[phase][i], tmp_vals[phase][i])))
 
             all_instrs.extend(self.build(walker_group_epilogue, const_operands))
