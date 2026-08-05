@@ -280,6 +280,34 @@ class KernelBuilder:
         const_0xFD7046C5 = self.scratch_const(setup, 0xFD7046C5)
         const_0xB55A4F09 = self.scratch_const(setup, 0xB55A4F09)
 
+        hash_consts = {
+            "1": const_one,
+            "2": const_two,
+            "9": const_nine,
+            "0": const_zero,
+            "4096": const_4096,
+            "32": const_32,
+            "8": const_8,
+            "512": const_512,
+            "19": const_nineteen,
+            "0x7ED55D16": tmp_0x7ED55D16,
+            "0xC761C23C": tmp_0xC761C23C,
+            "0x165667B1": tmp_0x165667B1,
+            "0xD3A2646C": tmp_0xD3A2646C,
+            "0xFD7046C5": tmp_0xFD7046C5,
+            "0xB55A4F09": tmp_0xB55A4F09,
+        }
+
+        tmps = {
+            "vals": tmp_vals,
+            "node_vals": tmp_node_vals,
+            "val_paritys": tmp_val_paritys,
+            "addrs": tmp_addrs,
+            "idxs": tmp_idxs,
+            "1s": tmp1s,
+            "2s": tmp2s,
+        }
+
         setup.append(("valu", ("vbroadcast", tmp_0x7ED55D16, const_0x7ED55D16)))
         setup.append(("valu", ("vbroadcast", tmp_0xC761C23C, const_0xC761C23C)))
         setup.append(("valu", ("vbroadcast", tmp_0x165667B1, const_0x165667B1)))
@@ -302,84 +330,84 @@ class KernelBuilder:
         all_instrs.extend(self.build(setup, const_operands))
         
 
-        def gen_index_calculation_instrs(phase):
+        def gen_index_calculation_instrs(phase, forest_values, group_size, tmps):
             # addr = forest_values_p + idx
             instrs = []
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("+", tmp_addrs[phase][i], forest_values, tmp_idxs[phase][i])))
+                instrs.append(("valu", ("+", tmps["addrs"][phase][i], forest_values, tmps["idxs"][phase][i])))
             return instrs 
 
-        def gen_load_instrs(phase):
+        def gen_load_instrs(phase, group_size, tmps):
             # node_val = mem[addr]
             instrs = []
             for i in range(group_size//VLEN):
                 for lane in range(VLEN):
-                    instrs.append(("load", ("load", tmp_node_vals[phase][i]+lane, tmp_addrs[phase][i]+lane)))
+                    instrs.append(("load", ("load", tmps["node_vals"][phase][i]+lane, tmps["addrs"][phase][i]+lane)))
             return instrs 
 
-        def gen_hash_and_update_instrs(round, phase):
+        def gen_hash_and_update_instrs(round, phase, forest_height, group_size, tmps, hash_consts):
             instrs = []
 
             # val = myhash(val ^ node_val)
 
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("^", tmp_vals[phase][i], tmp_vals[phase][i], tmp_node_vals[phase][i])))
+                instrs.append(("valu", ("^", tmps["vals"][phase][i], tmps["vals"][phase][i], tmps["node_vals"][phase][i])))
 
             # stage 1
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("+", tmp1s[phase][i], tmp_vals[phase][i], tmp_0x7ED55D16)))
+                instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0x7ED55D16"])))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("multiply_add", tmp_vals[phase][i], tmp_vals[phase][i], const_4096, tmp1s[phase][i])))
+                instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["4096"], tmps["1s"][phase][i])))
 
             # stage 2
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("^", tmp1s[phase][i], tmp_vals[phase][i], tmp_0xC761C23C)))
+                instrs.append(("valu", ("^", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xC761C23C"])))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", (">>", tmp2s[phase][i], tmp_vals[phase][i], const_nineteen)))
+                instrs.append(("valu", (">>", tmps["2s"][phase][i], tmps["vals"][phase][i], hash_consts["19"])))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("^", tmp_vals[phase][i], tmp1s[phase][i], tmp2s[phase][i])))
+                instrs.append(("valu", ("^", tmps["vals"][phase][i], tmps["1s"][phase][i], tmps["2s"][phase][i])))
 
             # stage 3
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("+", tmp1s[phase][i], tmp_vals[phase][i], tmp_0x165667B1)))
+                instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0x165667B1"])))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("multiply_add", tmp_vals[phase][i], tmp_vals[phase][i], const_32, tmp1s[phase][i])))
+                instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["32"], tmps["1s"][phase][i])))
 
             # stage 4
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("+", tmp1s[phase][i], tmp_vals[phase][i], tmp_0xD3A2646C)))
+                instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xD3A2646C"])))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("<<", tmp2s[phase][i], tmp_vals[phase][i], const_nine)))
+                instrs.append(("valu", ("<<", tmps["2s"][phase][i], tmps["vals"][phase][i], hash_consts["9"])))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("^", tmp_vals[phase][i], tmp1s[phase][i], tmp2s[phase][i])))
+                instrs.append(("valu", ("^", tmps["vals"][phase][i], tmps["1s"][phase][i], tmps["2s"][phase][i])))
 
             # stage 5
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("+", tmp1s[phase][i], tmp_vals[phase][i], tmp_0xFD7046C5)))
+                instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xFD7046C5"])))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("multiply_add", tmp_vals[phase][i], tmp_vals[phase][i], const_8, tmp1s[phase][i])))
+                instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["8"], tmps["1s"][phase][i])))
 
                 # stage 6
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("^", tmp1s[phase][i], tmp_vals[phase][i], tmp_0xB55A4F09)))
+                instrs.append(("valu", ("^", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xB55A4F09"])))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", (">>", tmp2s[phase][i], tmp_vals[phase][i], const_sixteen)))
+                instrs.append(("valu", (">>", tmps["2s"][phase][i], tmps["vals"][phase][i], const_sixteen)))
             for i in range(group_size//VLEN):
-                instrs.append(("valu", ("^", tmp_vals[phase][i], tmp1s[phase][i], tmp2s[phase][i])))
+                instrs.append(("valu", ("^", tmps["vals"][phase][i], tmps["1s"][phase][i], tmps["2s"][phase][i])))
 
             # update index to next tree level or loop back up
             if round == forest_height:
                 # idx = 0
                 for i in range(group_size//VLEN):
-                    instrs.append(("valu", ("&", tmp_idxs[phase][i], tmp_idxs[phase][i], const_zero)));
+                    instrs.append(("valu", ("&", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["0"])));
             else:
                 # idx = 2*idx + 1 + val&1
                 for i in range(group_size//VLEN):
-                    instrs.append(("valu", ("&", tmp_val_paritys[phase][i], tmp_vals[phase][i], const_one)));
+                    instrs.append(("valu", ("&", tmp_val_paritys[phase][i], tmps["vals"][phase][i], hash_consts["1"])));
                 for i in range(group_size//VLEN):
-                    instrs.append(("valu", ("multiply_add", tmp_idxs[phase][i], tmp_idxs[phase][i], const_two, const_one)))
+                    instrs.append(("valu", ("multiply_add", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["2"], hash_consts["1"])))
                 for i in range(group_size//VLEN):
-                    instrs.append(("valu", ("+", tmp_idxs[phase][i], tmp_idxs[phase][i], tmp_val_paritys[phase][i])))
+                    instrs.append(("valu", ("+", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["val_paritys"][phase][i])))
 
             return instrs 
 
@@ -407,19 +435,19 @@ class KernelBuilder:
                 for i in range(group_size//VLEN):
                     walker_group_prologue.append(("load", ("vload", tmp_vals[phase][i], tmp_addrs[phase][i])))
 
-            walker_group_prologue.extend(gen_index_calculation_instrs(0))
-            walker_group_prologue.extend(gen_load_instrs(0))
+            walker_group_prologue.extend(gen_index_calculation_instrs(0, forest_values, group_size, tmps))
+            walker_group_prologue.extend(gen_load_instrs(0, group_size, tmps))
 
             all_instrs.extend(self.build(walker_group_prologue, const_operands))
             walker_group_prologue = []
 
             for round in range(1, 2*rounds):
 
-                hash_and_update_instrs = gen_hash_and_update_instrs((round-1)//2, (round-1)%2)
-                index_instrs = gen_index_calculation_instrs(round%2)
+                hash_and_update_instrs = gen_hash_and_update_instrs((round-1)//2, (round-1)%2, forest_height, group_size, tmps, hash_consts)
+                index_instrs = gen_index_calculation_instrs(round%2, forest_values, group_size, tmps)
                 packed_valu_instrs = self.build(index_instrs + hash_and_update_instrs, const_operands)
 
-                packed_load_instrs = self.build(gen_load_instrs(round%2), const_operands)
+                packed_load_instrs = self.build(gen_load_instrs(round%2, group_size, tmps), const_operands)
 
                 # the empty instr added before the loads is to make sure the first cycle executes some
                 # index calculations and only after do the loads dependent on them start
@@ -427,7 +455,7 @@ class KernelBuilder:
 
                 all_instrs.extend(hot_loop)
 
-            walker_group_epilogue.extend(gen_hash_and_update_instrs(2*rounds-1, (rounds-1)%2))
+            walker_group_epilogue.extend(gen_hash_and_update_instrs(2*rounds-1, (rounds-1)%2, forest_height, group_size, tmps, hash_consts))
 
             # mem[inp_indices_p + i] = idx
             # mem[inp_values_p + i] = val
