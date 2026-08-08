@@ -36,9 +36,13 @@ from problem import (
     reference_kernel2,
 )
 
-from index_calculation_instrs import gen_index_calculation_instrs
-from load_instrs import gen_load_instrs
-from hash_and_update_instrs import gen_hash_and_update_instrs
+from hot_loop import gen_hot_loop_generic
+from index_calculation_instrs import gen_index_calculation_instrs_generic
+from load_instrs import gen_load_instrs_generic
+from hash_and_update_instrs import gen_hash_and_update_instrs_generic
+
+from packer import pack
+from setup import setup_scratch
 
 
 class KernelBuilder:
@@ -52,85 +56,6 @@ class KernelBuilder:
     def debug_info(self):
         return DebugInfo(scratch_map=self.scratch_debug)
 
-    def merge_independent_instr_streams(self, list_a, list_b):
-        instrs = []
-        for i in range(min(len(list_a), len(list_b))):
-            curr_instr = {
-                "alu": [],
-                "valu": [],
-                "load": [],
-                "store": [],
-            }
-            curr_instr["alu"].extend(list_a[i]["alu"])
-            curr_instr["alu"].extend(list_b[i]["alu"])
-            curr_instr["valu"].extend(list_a[i]["valu"])
-            curr_instr["valu"].extend(list_b[i]["valu"])
-            curr_instr["load"].extend(list_a[i]["load"])
-            curr_instr["load"].extend(list_b[i]["load"])
-            curr_instr["store"].extend(list_a[i]["store"])
-            curr_instr["store"].extend(list_b[i]["store"])
-            instrs.append(curr_instr)
-        if len(list_a) < len(list_b):
-            instrs.extend(list_b[len(list_a):])
-        elif len(list_b) < len(list_a):
-            instrs.extend(list_a[len(list_b):])
-        return instrs
-
-
-    def build(self, slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
-        # simple slot packing that packs consecutive instructions together (no reordering)
-
-        instrs = []
-        curr_instr = {
-            "alu": [],
-            "valu": [],
-            "load": [],
-            "store": [],
-        }
-        slot_counts = {
-            "alu": 0,
-            "valu": 0,
-            "load": 0,
-            "store": 0,
-        }
-        curr_read_operands = set()
-        curr_write_operands = set()
-
-        for engine, slot in slots:
-            has_slot_space = slot_counts[engine] < SLOT_LIMITS[engine]
-            new_operands = set(slot[1:])
-            new_write_operands = set([slot[1]])
-            new_read_operands = set(slot[2:])
-
-            operand_intersection = (new_write_operands & curr_write_operands) | (new_write_operands & curr_read_operands) | (new_read_operands & curr_write_operands)
-            has_invalid_dependence = operand_intersection - const_operands
-
-            if not has_slot_space or has_invalid_dependence:
-                instrs.append(curr_instr)
-
-                curr_instr = {
-                    "alu": [],
-                    "valu": [],
-                    "load": [],
-                    "store": [],
-                }
-                slot_counts["alu"] = 0
-                slot_counts["valu"] = 0
-                slot_counts["load"] = 0
-                slot_counts["store"] = 0
-                curr_read_operands = set()
-                curr_write_operands = set()
-
-            slot_counts[engine]+=1
-            curr_instr[engine].append(slot)
-            curr_read_operands.update(new_read_operands)
-            curr_write_operands.update(new_write_operands)
-
-
-        if curr_instr["alu"] or curr_instr["valu"] or curr_instr["load"] or curr_instr["store"]:
-            instrs.append(curr_instr)
-
-        return instrs
 
     def add(self, instr_list, engine, slot):
         instr_list.append({engine: [slot]})
@@ -162,10 +87,12 @@ class KernelBuilder:
 
         all_instrs = []
 
-        setup = []
+        # setup = []
         walker_group_prologue = []
         hot_loop = []
         walker_group_epilogue = []
+
+
 
         # Pause instructions are matched up with yield statements in the reference
         # kernel to let you debug at intermediate steps. The testing harness in this
@@ -178,163 +105,9 @@ class KernelBuilder:
         group_size = 64
         num_phases = 2
 
-        tmp1s = []
-        tmp2s = []
-        tmp3s = []
-        for p in range(num_phases):
-            tmp1s.append([])
-            tmp2s.append([])
-            tmp3s.append([])
-            for walker_group_idx in range(group_size//VLEN):
-                tmp1s[p].append(self.alloc_scratch(None, VLEN))
-                tmp2s[p].append(self.alloc_scratch(None, VLEN))
-                tmp3s[p].append(self.alloc_scratch(None, VLEN))
+        setup, const_operands, consts, tmps = setup_scratch(self.alloc_scratch, self.scratch_const, num_walkers, group_size, num_phases)
 
-        # Scratch space addresses
-        init_vars = [
-            "rounds",
-            "n_nodes",
-            "num_walkers",
-            "forest_height",
-            "forest_values_p",
-            "inp_indices_p",
-            "inp_values_p",
-        ]
-        for v in init_vars:
-            self.alloc_scratch(v, 1)
-        for i, v in enumerate(init_vars):
-            setup.append(("load", ("const", tmp1s[0][i], i)))
-        for i, v in enumerate(init_vars):
-            setup.append(("load", ("load", self.scratch[v], tmp1s[0][i])))
-
-        const_zero = self.alloc_scratch(0, VLEN)
-        const_one = self.alloc_scratch(1, VLEN)
-        const_two = self.alloc_scratch(2, VLEN)
-        const_three = self.alloc_scratch(3, VLEN)
-        const_five = self.alloc_scratch(5, VLEN)
-        const_nine = self.alloc_scratch(9, VLEN)
-        const_twelve = self.alloc_scratch(12, VLEN)
-        const_sixteen = self.alloc_scratch(16, VLEN)
-        const_nineteen = self.alloc_scratch(19, VLEN)
-        const_4096 = self.alloc_scratch(4096, VLEN)
-        const_32 = self.alloc_scratch(32, VLEN)
-        const_8 = self.alloc_scratch(8, VLEN)
-        const_512 = self.alloc_scratch(512, VLEN)
-
-        tmp_scalar_const_zero = self.scratch_const(setup, 0)
-        tmp_scalar_const_one = self.scratch_const(setup, 1)
-        tmp_scalar_const_two = self.scratch_const(setup, 2)
-        tmp_scalar_const_three = self.scratch_const(setup, 3)
-        tmp_scalar_const_five = self.scratch_const(setup, 5)
-        tmp_scalar_const_nine = self.scratch_const(setup, 9)
-        tmp_scalar_const_twelve = self.scratch_const(setup, 12)
-        tmp_scalar_const_sixteen = self.scratch_const(setup, 16)
-        tmp_scalar_const_nineteen = self.scratch_const(setup, 19)
-        tmp_scalar_const_4096 = self.scratch_const(setup, 4096)
-        tmp_scalar_const_32 = self.scratch_const(setup, 32)
-        tmp_scalar_const_8 = self.scratch_const(setup, 8)
-        tmp_scalar_const_512 = self.scratch_const(setup, 512)
-
-        forest_values = self.alloc_scratch(self.scratch["forest_values_p"], VLEN)
-
-        setup.append(("valu", ("vbroadcast", const_zero, tmp_scalar_const_zero)))
-        setup.append(("valu", ("vbroadcast", const_one, tmp_scalar_const_one)))
-        setup.append(("valu", ("vbroadcast", const_two, tmp_scalar_const_two)))
-        setup.append(("valu", ("vbroadcast", const_three, tmp_scalar_const_three)))
-        setup.append(("valu", ("vbroadcast", const_five, tmp_scalar_const_five)))
-        setup.append(("valu", ("vbroadcast", const_nine, tmp_scalar_const_nine)))
-        setup.append(("valu", ("vbroadcast", const_twelve, tmp_scalar_const_twelve)))
-        setup.append(("valu", ("vbroadcast", const_sixteen, tmp_scalar_const_sixteen)))
-        setup.append(("valu", ("vbroadcast", const_nineteen, tmp_scalar_const_nineteen)))
-        setup.append(("valu", ("vbroadcast", const_4096, tmp_scalar_const_4096)))
-        setup.append(("valu", ("vbroadcast", const_32, tmp_scalar_const_32)))
-        setup.append(("valu", ("vbroadcast", const_8, tmp_scalar_const_8)))
-        setup.append(("valu", ("vbroadcast", const_512, tmp_scalar_const_512)))
-        setup.append(("valu", ("vbroadcast", forest_values, self.scratch["forest_values_p"])))
-
-        tmp_idxs = []
-        tmp_vals = []
-        tmp_node_vals = []
-        tmp_addrs = []
-        tmp_val_paritys = []
-        for p in range(num_phases):
-            tmp_idxs.append([])
-            tmp_vals.append([])
-            tmp_node_vals.append([])
-            tmp_addrs.append([])
-            tmp_val_paritys.append([])
-            for walker_group_idx in range(group_size//VLEN):
-                tmp_idxs[p].append(self.alloc_scratch(None, VLEN))
-                tmp_vals[p].append(self.alloc_scratch(None, VLEN))
-                tmp_node_vals[p].append(self.alloc_scratch(None, VLEN))
-                tmp_addrs[p].append(self.alloc_scratch(None, VLEN))
-                tmp_val_paritys[p].append(self.alloc_scratch(None, VLEN))
-
-        tmp_0x7ED55D16 = self.alloc_scratch("tmp_0x7ED55D16", VLEN)
-        tmp_0xC761C23C = self.alloc_scratch("tmp_0xC761C23C", VLEN)
-        tmp_0x165667B1 = self.alloc_scratch("tmp_0x165667B1", VLEN)
-        tmp_0xD3A2646C = self.alloc_scratch("tmp_0xD3A2646C", VLEN)
-        tmp_0xFD7046C5 = self.alloc_scratch("tmp_0xFD7046C5", VLEN)
-        tmp_0xB55A4F09 = self.alloc_scratch("tmp_0xB55A4F09", VLEN)
-
-        const_0x7ED55D16 = self.scratch_const(setup, 0x7ED55D16)
-        const_0xC761C23C = self.scratch_const(setup, 0xC761C23C)
-        const_0x165667B1 = self.scratch_const(setup, 0x165667B1)
-        const_0xD3A2646C = self.scratch_const(setup, 0xD3A2646C)
-        const_0xFD7046C5 = self.scratch_const(setup, 0xFD7046C5)
-        const_0xB55A4F09 = self.scratch_const(setup, 0xB55A4F09)
-
-        hash_consts = {
-            "0": const_zero,
-            "1": const_one,
-            "2": const_two,
-            "8": const_8,
-            "9": const_nine,
-            "16": const_sixteen,
-            "19": const_nineteen,
-            "32": const_32,
-            "512": const_512,
-            "4096": const_4096,
-            "0x7ED55D16": tmp_0x7ED55D16,
-            "0xC761C23C": tmp_0xC761C23C,
-            "0x165667B1": tmp_0x165667B1,
-            "0xD3A2646C": tmp_0xD3A2646C,
-            "0xFD7046C5": tmp_0xFD7046C5,
-            "0xB55A4F09": tmp_0xB55A4F09,
-        }
-
-        tmps = {
-            "vals": tmp_vals,
-            "node_vals": tmp_node_vals,
-            "val_paritys": tmp_val_paritys,
-            "addrs": tmp_addrs,
-            "idxs": tmp_idxs,
-            "1s": tmp1s,
-            "2s": tmp2s,
-        }
-
-        setup.append(("valu", ("vbroadcast", tmp_0x7ED55D16, const_0x7ED55D16)))
-        setup.append(("valu", ("vbroadcast", tmp_0xC761C23C, const_0xC761C23C)))
-        setup.append(("valu", ("vbroadcast", tmp_0x165667B1, const_0x165667B1)))
-        setup.append(("valu", ("vbroadcast", tmp_0xD3A2646C, const_0xD3A2646C)))
-        setup.append(("valu", ("vbroadcast", tmp_0xFD7046C5, const_0xFD7046C5)))
-        setup.append(("valu", ("vbroadcast", tmp_0xB55A4F09, const_0xB55A4F09)))
-
-        walker_consts = []
-        for walker_idx in range(0, num_walkers, 2*group_size):
-            walker_idx_idx = (int)(walker_idx/(2*group_size))
-            walker_consts.append([])
-            for phase in range(num_phases):
-                walker_consts[walker_idx_idx].append([])
-                for i in range(group_size//VLEN):
-                    walker_consts[walker_idx_idx][phase].append(self.scratch_const(setup, group_size*phase+walker_idx+VLEN*i))
-
-
-        const_operands = {tmp_0x7ED55D16, tmp_0xC761C23C, tmp_0x165667B1, tmp_0xD3A2646C, tmp_0xFD7046C5, tmp_0xB55A4F09, const_zero, const_one, const_two, const_three, const_five, const_nine, const_twelve, const_sixteen, const_nineteen, const_4096, const_32, const_8, const_512, forest_values}
-
-        all_instrs.extend(self.build(setup, const_operands))
-        
-
+        all_instrs.extend(pack(setup, const_operands))
 
 
         for walker_idx in range(0, num_walkers, 2*group_size):
@@ -346,61 +119,53 @@ class KernelBuilder:
             # val = mem[inp_values_p + i]
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker_group_prologue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_indices_p"], walker_consts[walker_idx_idx][phase][i])))
+                    walker_group_prologue.append(("alu", ("+", tmps["addrs"][phase][i], consts["inp_indices_p"], consts["walker_idxs"][walker_idx_idx][phase][i])))
 
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker_group_prologue.append(("load", ("vload", tmp_idxs[phase][i], tmp_addrs[phase][i])))
+                    walker_group_prologue.append(("load", ("vload", tmps["idxs"][phase][i], tmps["addrs"][phase][i])))
 
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker_group_prologue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_values_p"], walker_consts[walker_idx_idx][phase][i])))
+                    walker_group_prologue.append(("alu", ("+", tmps["addrs"][phase][i], consts["inp_values_p"], consts["walker_idxs"][walker_idx_idx][phase][i])))
 
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker_group_prologue.append(("load", ("vload", tmp_vals[phase][i], tmp_addrs[phase][i])))
+                    walker_group_prologue.append(("load", ("vload", tmps["vals"][phase][i], tmps["addrs"][phase][i])))
 
-            walker_group_prologue.extend(gen_index_calculation_instrs(0, forest_values, group_size, tmps))
-            walker_group_prologue.extend(gen_load_instrs(0, group_size, tmps))
+            walker_group_prologue.extend(gen_index_calculation_instrs_generic(0, group_size, consts, tmps))
+            walker_group_prologue.extend(gen_load_instrs_generic(0, group_size, tmps))
 
-            all_instrs.extend(self.build(walker_group_prologue, const_operands))
+            all_instrs.extend(pack(walker_group_prologue, const_operands))
             walker_group_prologue = []
 
             for round in range(1, 2*rounds):
 
-                hash_and_update_instrs = gen_hash_and_update_instrs((round-1)//2, (round-1)%2, forest_height, group_size, tmps, hash_consts)
-                index_instrs = gen_index_calculation_instrs(round%2, forest_values, group_size, tmps)
-                packed_valu_instrs = self.build(index_instrs + hash_and_update_instrs, const_operands)
-
-                packed_load_instrs = self.build(gen_load_instrs(round%2, group_size, tmps), const_operands)
-
-                # the empty instr added before the loads is to make sure the first cycle executes some
-                # index calculations and only after do the loads dependent on them start
-                hot_loop = self.merge_independent_instr_streams(packed_valu_instrs, [{"alu": [], "valu": [], "store": [], "load": []}] + packed_load_instrs)
+                hot_loop = gen_hot_loop_generic(round, phase, forest_height, consts["forest_values"], group_size, const_operands, tmps, consts)
 
                 all_instrs.extend(hot_loop)
 
-            walker_group_epilogue.extend(gen_hash_and_update_instrs(2*rounds-1, (rounds-1)%2, forest_height, group_size, tmps, hash_consts))
+            walker_group_epilogue.extend(gen_hash_and_update_instrs_generic(2*rounds-1, (rounds-1)%2, forest_height, group_size, tmps, consts))
 
             # mem[inp_indices_p + i] = idx
             # mem[inp_values_p + i] = val
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker_group_epilogue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_indices_p"], walker_consts[walker_idx_idx][phase][i])))
+                    walker_group_epilogue.append(("alu", ("+", tmps["addrs"][phase][i], consts["inp_indices_p"], consts["walker_idxs"][walker_idx_idx][phase][i])))
 
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker_group_epilogue.append(("store", ("vstore", tmp_addrs[phase][i], tmp_idxs[phase][i])))
+                    walker_group_epilogue.append(("store", ("vstore", tmps["addrs"][phase][i], tmps["idxs"][phase][i])))
 
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker_group_epilogue.append(("alu", ("+", tmp_addrs[phase][i], self.scratch["inp_values_p"], walker_consts[walker_idx_idx][phase][i])))
+                    walker_group_epilogue.append(("alu", ("+", tmps["addrs"][phase][i], consts["inp_values_p"], consts["walker_idxs"][walker_idx_idx][phase][i])))
 
             for phase in range(num_phases):
                 for i in range(group_size//VLEN):
-                    walker_group_epilogue.append(("store", ("vstore", tmp_addrs[phase][i], tmp_vals[phase][i])))
+                    walker_group_epilogue.append(("store", ("vstore", tmps["addrs"][phase][i], tmps["vals"][phase][i])))
 
-            all_instrs.extend(self.build(walker_group_epilogue, const_operands))
+            all_instrs.extend(pack(walker_group_epilogue, const_operands))
             walker_group_epilogue = []
 
 

@@ -1,6 +1,6 @@
 from problem import VLEN
 
-def gen_hash_and_update_instrs(round, phase, forest_height, group_size, tmps, hash_consts):
+def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, tmps, hash_consts):
     instrs = []
 
     # val = myhash(val ^ node_val)
