@@ -36,7 +36,7 @@ from problem import (
     reference_kernel2,
 )
 
-from hot_loop import gen_hot_loop_generic
+from hot_loop import gen_hot_loop_generic, gen_hot_loop_prologue
 from index_calculation_instrs import gen_index_calculation_instrs_generic
 from load_instrs import gen_load_instrs_generic
 from hash_and_update_instrs import gen_hash_and_update_instrs_generic
@@ -116,8 +116,10 @@ class KernelBuilder:
             walker_group_prologue.extend(gen_read_in_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
 
             # start pipeline
-            walker_group_prologue.extend(gen_index_calculation_instrs_generic(0, group_size, consts, tmps))
-            walker_group_prologue.extend(gen_load_instrs_generic(0, group_size, tmps))
+            # walker_group_prologue.extend(gen_index_calculation_instrs_generic(0, group_size, consts, tmps))
+            # walker_group_prologue.extend(gen_load_instrs_generic(0, group_size, tmps))
+            walker_group_prologue.extend(gen_hot_loop_prologue(group_size, consts, tmps))
+
             all_instrs.extend(pack(walker_group_prologue, const_operands))
 
             # main body of pipeline
