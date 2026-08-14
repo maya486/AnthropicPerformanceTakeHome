@@ -1,5 +1,5 @@
 from index_calculation_instrs import gen_index_calculation_instrs_generic
-from load_instrs import gen_load_instrs_generic, gen_load_instrs_round_0, gen_load_instrs_round_11
+from load_instrs import gen_load_instrs_generic, gen_load_instrs_round_0, gen_load_instrs_round_11, gen_load_instrs_round_1
 from hash_and_update_instrs import gen_hash_and_update_instrs_generic
 from packer import pack, merge_independent_instr_streams
 
@@ -11,12 +11,21 @@ def gen_hot_loop(round, forest_height, forest_values, group_size, const_operands
     index_load_round = round//2
     index_load_phase = round%2
 
-    # looping back up to root
-    if index_load_round == 11:
+    # at root
+    if index_load_round == 11 or index_load_round == 0:
         packed_load_instrs = pack(gen_load_instrs_round_11(index_load_phase, group_size, consts, tmps), const_operands)
         packed_hash_and_update_instrs = pack(gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts), const_operands)
 
         return merge_independent_instr_streams(packed_load_instrs, packed_hash_and_update_instrs)
+
+    # # at level below root, only 2 nodes
+    # elif index_load_round == 1:
+
+        # packed_load_instrs = pack(gen_load_instrs_round_1(index_load_phase, group_size, consts, tmps), const_operands)
+        # packed_hash_and_update_instrs = pack(gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts), const_operands)
+
+        # return merge_independent_instr_streams(packed_load_instrs, packed_hash_and_update_instrs)
+
 
     else:
         return gen_hot_loop_generic(hash_round, hash_phase, index_load_phase, forest_height, forest_values, group_size, const_operands, tmps, consts)
@@ -32,7 +41,7 @@ def gen_hot_loop_generic(hash_round, hash_phase, index_load_phase, forest_height
 
     # the empty instr added before the loads is to make sure the first cycle executes some
     # index calculations and only after do the loads dependent on them start
-    return merge_independent_instr_streams(packed_valu_instrs, [{"alu": [], "valu": [], "store": [], "load": []}] + packed_load_instrs)
+    return merge_independent_instr_streams(packed_valu_instrs, [{"alu": [], "valu": [], "store": [], "load": [], "flow": []}] + packed_load_instrs)
 
 
 def gen_hot_loop_prologue(group_size, consts, tmps):

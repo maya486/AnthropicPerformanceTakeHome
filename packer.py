@@ -9,6 +9,7 @@ def merge_independent_instr_streams(list_a, list_b):
             "valu": [],
             "load": [],
             "store": [],
+            "flow": []
         }
         curr_instr["alu"].extend(list_a[i]["alu"])
         curr_instr["alu"].extend(list_b[i]["alu"])
@@ -18,6 +19,8 @@ def merge_independent_instr_streams(list_a, list_b):
         curr_instr["load"].extend(list_b[i]["load"])
         curr_instr["store"].extend(list_a[i]["store"])
         curr_instr["store"].extend(list_b[i]["store"])
+        curr_instr["flow"].extend(list_a[i]["flow"])
+        curr_instr["flow"].extend(list_b[i]["flow"])
         instrs.append(curr_instr)
     if len(list_a) < len(list_b):
         instrs.extend(list_b[len(list_a):])
@@ -35,12 +38,14 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
         "valu": [],
         "load": [],
         "store": [],
+        "flow": []
     }
     slot_counts = {
         "alu": 0,
         "valu": 0,
         "load": 0,
         "store": 0,
+        "flow": 0,
     }
     curr_read_operands = set()
     curr_write_operands = set()
@@ -62,11 +67,13 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
                 "valu": [],
                 "load": [],
                 "store": [],
+                "flow": []
             }
             slot_counts["alu"] = 0
             slot_counts["valu"] = 0
             slot_counts["load"] = 0
             slot_counts["store"] = 0
+            slot_counts["flow"] = 0
             curr_read_operands = set()
             curr_write_operands = set()
 
@@ -76,7 +83,7 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
         curr_write_operands.update(new_write_operands)
 
 
-    if curr_instr["alu"] or curr_instr["valu"] or curr_instr["load"] or curr_instr["store"]:
+    if curr_instr["alu"] or curr_instr["valu"] or curr_instr["load"] or curr_instr["store"] or curr_instr["flow"]:
         instrs.append(curr_instr)
 
     return instrs

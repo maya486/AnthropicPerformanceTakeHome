@@ -7,12 +7,15 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     tmp1s = []
     tmp2s = []
     tmp3s = []
+    tmp4s = []
     for p in range(num_phases):
         tmp1s.append([])
         tmp2s.append([])
+        tmp4s.append([])
         for walker_group_idx in range(group_size//VLEN):
             tmp1s[p].append(alloc_scratch(None, VLEN))
             tmp2s[p].append(alloc_scratch(None, VLEN))
+            tmp4s[p].append(alloc_scratch(None, VLEN))
             tmp3s.append(alloc_scratch(None, VLEN))
 
     # memory layout
@@ -166,6 +169,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
         "1s": tmp1s,
         "2s": tmp2s,
         "3s": tmp3s,
+        "4s": tmp4s,
     }
 
 
