@@ -12,9 +12,24 @@ def gen_load_instrs_generic(phase, group_size, tmps):
 
 def gen_load_instrs_round_0(phase, group_size, consts, tmps):
     instrs = []
-    instrs.append(("load", ("load", tmps["1s"][phase][0], consts["forest_values"])))
+
+    # load root into tmp reg
+    instrs.append(("load", ("load", tmps["3s"][0], consts["forest_values"])))
 
     # can vbroadcast because for round 0 this is prologue of pipeline so no concurrent hash stuff
     for i in range(group_size//VLEN):
-        instrs.append(("valu", ("vbroadcast", tmps["node_vals"][phase][i], tmps["1s"][phase][0])))
+        instrs.append(("valu", ("vbroadcast", tmps["node_vals"][phase][i], tmps["3s"][0])))
+
+    return instrs
+
+def gen_load_instrs_round_1(phase, group_size, consts, tmps):
+    instrs = []
+
+    # load root into tmp reg
+    instrs.append(("load", ("load", tmps["3s"][0], consts["forest_values"])))
+
+    # can vbroadcast because for round 0 this is prologue of pipeline so no concurrent hash stuff
+    for i in range(group_size//VLEN):
+        instrs.append(("valu", ("vbroadcast", tmps["node_vals"][phase][i], tmps["3s"][0])))
+
     return instrs

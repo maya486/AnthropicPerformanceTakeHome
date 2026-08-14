@@ -7,6 +7,3 @@ def gen_index_calculation_instrs_generic(phase, group_size, consts, tmps):
         instrs.append(("valu", ("+", tmps["addrs"][phase][i], consts["forest_values"], tmps["idxs"][phase][i])))
     return instrs 
 
-def gen_index_calculation_instrs_round_0(phase, group_size, consts, tmps):
-    # know that need to just read from consts["forest_values"] because idx is 0
-    return []

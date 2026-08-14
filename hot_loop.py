@@ -3,12 +3,24 @@ from load_instrs import gen_load_instrs_generic, gen_load_instrs_round_0
 from hash_and_update_instrs import gen_hash_and_update_instrs_generic
 from packer import pack, merge_independent_instr_streams
 
-def gen_hot_loop_generic(round, forest_height, forest_values, group_size, const_operands, tmps, consts):
-    hash_and_update_instrs = gen_hash_and_update_instrs_generic((round-1)//2, (round-1)%2, forest_height, group_size, tmps, consts)
-    index_instrs = gen_index_calculation_instrs_generic(round%2, group_size, consts, tmps)
+
+def gen_hot_loop(round, forest_height, forest_values, group_size, const_operands, tmps, consts):
+
+    hash_round = (round-1)//2
+    hash_phase = (round-1)%2
+    index_load_round = round//2
+    index_load_phase = round%2
+
+    return gen_hot_loop_generic(hash_round, hash_phase, index_load_phase, forest_height, forest_values, group_size, const_operands, tmps, consts)
+
+
+def gen_hot_loop_generic(hash_round, hash_phase, index_load_phase, forest_height, forest_values, group_size, const_operands, tmps, consts):
+
+    hash_and_update_instrs = gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts)
+    index_instrs = gen_index_calculation_instrs_generic(index_load_phase, group_size, consts, tmps)
     packed_valu_instrs = pack(index_instrs + hash_and_update_instrs, const_operands)
 
-    packed_load_instrs = pack(gen_load_instrs_generic(round%2, group_size, tmps), const_operands)
+    packed_load_instrs = pack(gen_load_instrs_generic(index_load_phase, group_size, tmps), const_operands)
 
     # the empty instr added before the loads is to make sure the first cycle executes some
     # index calculations and only after do the loads dependent on them start
@@ -17,6 +29,9 @@ def gen_hot_loop_generic(round, forest_height, forest_values, group_size, const_
 
 def gen_hot_loop_prologue(group_size, consts, tmps):
     return gen_load_instrs_round_0(0, group_size, consts, tmps)
+
+def gen_hot_loop_epilogue(rounds, forest_height, group_size, consts, tmps):
+    return gen_hash_and_update_instrs_generic(31, 1, forest_height, group_size, tmps, consts)
 
 
 """
@@ -36,6 +51,13 @@ Original Packing Strategy:
 Round 0 Shortcut:
     (alu) index: calculate index location for single root
     (load+alu) load: load single root val
+        AND add with zero to sudo vbroadcast to whole group_size
+    (valu) hash: for each of the group_size loaded vals do hash and move idx to next tree level
+
+Round 1 Shortcut:
+    (alu) index: calculate index location for 2 nodes
+    (load+alu) load: load 2 nodes into tmp1s[1] and [2]
+        AND create a walker_node_idx = walker_idx+tmp1s[0]
         AND add with zero to sudo vbroadcast to whole group_size
     (valu) hash: for each of the group_size loaded vals do hash and move idx to next tree level
 
