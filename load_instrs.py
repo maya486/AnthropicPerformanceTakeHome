@@ -22,6 +22,22 @@ def gen_load_instrs_round_0(phase, group_size, consts, tmps):
 
     return instrs
 
+def gen_load_instrs_round_11(phase, group_size, consts, tmps):
+    instrs = []
+
+    # load root into tmp reg
+    instrs.append(("load", ("load", tmps["3s"][0], consts["forest_values"])))
+
+    # for i in range(group_size//VLEN):
+        # instrs.append(("valu", ("vbroadcast", tmps["node_vals"][phase][i], tmps["3s"][0])))
+    for i in range(group_size//VLEN):
+        for lane in range(VLEN):
+            instrs.append(("alu", ("+", tmps["node_vals"][phase][i]+lane, tmps["3s"][0], consts["0"])))
+
+
+
+    return instrs
+
 def gen_load_instrs_round_1(phase, group_size, consts, tmps):
     instrs = []
 
