@@ -6,7 +6,6 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
 
     tmp1s = []
     tmp2s = []
-    tmp3s = []
     tmp4s = []
     for p in range(num_phases):
         tmp1s.append([])
@@ -16,7 +15,11 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
             tmp1s[p].append(alloc_scratch(None, VLEN))
             tmp2s[p].append(alloc_scratch(None, VLEN))
             tmp4s[p].append(alloc_scratch(None, VLEN))
-            tmp3s.append(alloc_scratch(None, VLEN))
+
+    tmp3s = []
+    for i in range(32):
+        tmp3s.append(alloc_scratch(None, VLEN))
+
 
     # memory layout
     # 0: "rounds",

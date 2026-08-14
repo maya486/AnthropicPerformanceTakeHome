@@ -10,7 +10,7 @@ def gen_load_instrs_generic(phase, group_size, tmps):
     return instrs 
 
 
-def gen_load_instrs_round_0(phase, group_size, consts, tmps):
+def gen_load_instrs_round_0_with_valu(phase, group_size, consts, tmps):
     instrs = []
 
     # load root into tmp reg
@@ -22,7 +22,7 @@ def gen_load_instrs_round_0(phase, group_size, consts, tmps):
 
     return instrs
 
-def gen_load_instrs_round_11(phase, group_size, consts, tmps):
+def gen_load_instrs_round_0(phase, group_size, consts, tmps):
     instrs = []
 
     # load root into tmp reg
@@ -42,15 +42,19 @@ def gen_load_instrs_round_1(phase, group_size, consts, tmps):
     instrs.append(("alu", ("+", tmps["3s"][1], consts["forest_values"], consts["2"])))
 
     # load 2 nodes
-    instrs.append(("load", ("load", tmps["3s"][2], tmps["3s"][0])))
-    instrs.append(("load", ("load", tmps["3s"][3], tmps["3s"][1])))
+    instrs.append(("load", ("load", tmps["3s"][8], tmps["3s"][0])))
+    instrs.append(("load", ("load", tmps["3s"][16], tmps["3s"][1])))
+    for lane in range(1, VLEN):
+        instrs.append(("alu", ("+", tmps["3s"][8]+lane, tmps["3s"][8], consts["0"])))
+        instrs.append(("alu", ("+", tmps["3s"][16]+lane, tmps["3s"][16], consts["0"])))
+
 
     for i in range(group_size//VLEN):
         for lane in range(VLEN):
             instrs.append(("alu", ("-", tmps["4s"][phase][i]+lane, tmps["idxs"][phase][i]+lane, consts["1"])))
 
     for i in range(group_size//VLEN):
-        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["4s"][phase][i], tmps["3s"][3], tmps["3s"][2])))
+        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["4s"][phase][i], tmps["3s"][16], tmps["3s"][8])))
 
 
     return instrs

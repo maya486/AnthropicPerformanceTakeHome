@@ -1,5 +1,5 @@
 from index_calculation_instrs import gen_index_calculation_instrs_generic
-from load_instrs import gen_load_instrs_generic, gen_load_instrs_round_0, gen_load_instrs_round_11, gen_load_instrs_round_1
+from load_instrs import gen_load_instrs_generic, gen_load_instrs_round_0, gen_load_instrs_round_0_with_valu, gen_load_instrs_round_1
 from hash_and_update_instrs import gen_hash_and_update_instrs_generic
 from packer import pack, merge_independent_instr_streams
 
@@ -12,19 +12,19 @@ def gen_hot_loop(round, forest_height, forest_values, group_size, const_operands
     index_load_phase = round%2
 
     # at root
-    if index_load_round == 11 or index_load_round == 0:
-        packed_load_instrs = pack(gen_load_instrs_round_11(index_load_phase, group_size, consts, tmps), const_operands)
+    if index_load_round == 0 or index_load_round == 11:
+        packed_load_instrs = pack(gen_load_instrs_round_0(index_load_phase, group_size, consts, tmps), const_operands)
         packed_hash_and_update_instrs = pack(gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts), const_operands)
 
         return merge_independent_instr_streams(packed_load_instrs, packed_hash_and_update_instrs)
 
-    # # at level below root, only 2 nodes
-    # elif index_load_round == 1:
+    # at level below root, only 2 nodes
+    elif index_load_round == 1 or index_load_round == 12:
 
-        # packed_load_instrs = pack(gen_load_instrs_round_1(index_load_phase, group_size, consts, tmps), const_operands)
-        # packed_hash_and_update_instrs = pack(gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts), const_operands)
+        packed_load_instrs = pack(gen_load_instrs_round_1(index_load_phase, group_size, consts, tmps), const_operands)
+        packed_hash_and_update_instrs = pack(gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts), const_operands)
 
-        # return merge_independent_instr_streams(packed_load_instrs, packed_hash_and_update_instrs)
+        return merge_independent_instr_streams(packed_load_instrs, packed_hash_and_update_instrs)
 
 
     else:
@@ -45,7 +45,7 @@ def gen_hot_loop_generic(hash_round, hash_phase, index_load_phase, forest_height
 
 
 def gen_hot_loop_prologue(group_size, consts, tmps):
-    return gen_load_instrs_round_0(0, group_size, consts, tmps)
+    return gen_load_instrs_round_0_with_valu(0, group_size, consts, tmps)
 
 def gen_hot_loop_epilogue(rounds, forest_height, group_size, consts, tmps):
     return gen_hash_and_update_instrs_generic(31, 1, forest_height, group_size, tmps, consts)
