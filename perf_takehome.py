@@ -41,7 +41,7 @@ from hash_and_update_instrs import gen_hash_and_update_instrs_generic
 
 from walker_group import gen_read_in_walker_group_instrs, gen_write_out_walker_group_instrs
 
-from packer import pack
+from packer import pack, squish
 from setup import setup_scratch
 
 
@@ -100,7 +100,13 @@ class KernelBuilder:
 
         setup, const_operands, consts, tmps = setup_scratch(self.alloc_scratch, self.scratch_const, num_walkers, group_size, num_phases)
 
-        all_instrs.extend(pack(setup, const_operands))
+        # all_instrs.extend(pack(setup, const_operands))
+        all_instrs.extend(squish(setup, const_operands))
+        # print("PACK: ")
+        # print(pack(setup, const_operands))
+        # print("SQUISH: ")
+        # print(squish(setup, const_operands))
+        # print(len(squish(setup, const_operands)))
 
 
         # fully process groups of walkers at a time

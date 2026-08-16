@@ -87,3 +87,113 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
         instrs.append(curr_instr)
 
     return instrs
+
+def squish(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
+    # simple slot packing that packs consecutive instructions together (no reordering)
+
+    instrs = []
+    # curr_instr = {
+        # "alu": [],
+        # "valu": [],
+        # "load": [],
+        # "store": [],
+        # "flow": []
+    # }
+    # slot_counts = {
+        # "alu": 0,
+        # "valu": 0,
+        # "load": 0,
+        # "store": 0,
+        # "flow": 0,
+    # }
+    # curr_read_operands = set()
+    # curr_write_operands = set()
+
+    for engine, slot in slots:
+        placed_slot = False
+        # last_valid_index =
+        for i in range(len(instrs)-1, -1, -1):
+            curr_read_operands = set()
+            curr_write_operands = set()
+            for e_name, e_slots in instrs[i].items():
+                # print(e)
+                for s in e_slots:
+                    curr_write_operands |= set([s[1]])
+                    curr_read_operands |= set(s[2:])
+
+            slot_counts = len(instrs[i][engine])
+            # print("slot counts", slot_counts)
+            # has_slot_space = slot_counts[engine] < SLOT_LIMITS[engine]
+            has_slot_space = slot_counts < SLOT_LIMITS[engine]
+            new_operands = set(slot[1:])
+            new_write_operands = set([slot[1]])
+            new_read_operands = set(slot[2:])
+
+            operand_intersection = (new_write_operands & curr_write_operands) | (new_write_operands & curr_read_operands) | (new_read_operands & curr_write_operands)
+            has_invalid_dependence = operand_intersection - set(const_operands)
+
+            if not has_slot_space or has_invalid_dependence:
+                # print(instrs)
+                # print("adding", slot, "at index", i+1)
+                # print("with slot_counts", slot_counts, "and limit", SLOT_LIMITS[engine])
+                # instrs.append(curr_instr)
+                # instrs.insert(i+1, curr_instr)
+                if i == len(instrs)-1:
+                    curr_instr = {
+                        "alu": [],
+                        "valu": [],
+                        "load": [],
+                        "store": [],
+                        "flow": []
+                    }
+                    curr_instr[engine].append(slot)
+                    instrs.append(curr_instr)
+                else:
+                    instrs[i+1][engine].append(slot)
+
+                # curr_instr = {
+                    # "alu": [],
+                    # "valu": [],
+                    # "load": [],
+                    # "store": [],
+                    # "flow": []
+                # }
+                # slot_counts["alu"] = 0
+                # slot_counts["valu"] = 0
+                # slot_counts["load"] = 0
+                # slot_counts["store"] = 0
+                # slot_counts["flow"] = 0
+                curr_read_operands = set()
+                curr_write_operands = set()
+
+
+                placed_slot = True
+                break
+
+
+            # slot_counts[engine]+=1
+            # curr_instr[engine].append(slot)
+            # curr_read_operands.update(new_read_operands)
+            # curr_write_operands.update(new_write_operands)
+        # instrs.insert(0, curr_instr)
+        # instrs[0][engine].append(slot)
+        if not placed_slot:
+            if len(instrs) == 0:
+                curr_instr = {
+                    "alu": [],
+                    "valu": [],
+                    "load": [],
+                    "store": [],
+                    "flow": []
+                }
+                curr_instr[engine].append(slot)
+                instrs.append(curr_instr)
+            else:
+                instrs[0][engine].append(slot)
+
+
+
+    # if curr_instr["alu"] or curr_instr["valu"] or curr_instr["load"] or curr_instr["store"] or curr_instr["flow"]:
+        # instrs.append(curr_instr)
+
+    return instrs
