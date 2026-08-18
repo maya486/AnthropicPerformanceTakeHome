@@ -36,12 +36,9 @@ from problem import (
     reference_kernel2,
 )
 
-from hot_loop import gen_hot_loop, gen_hot_loop_prologue, gen_hot_loop_epilogue
-from hash_and_update_instrs import gen_hash_and_update_instrs_generic
-
+from pipeline import gen_pipeline_iter, gen_pipeline_ramp_up, gen_pipeline_ramp_down
 from walker_group import gen_read_in_walker_group_instrs, gen_write_out_walker_group_instrs
-
-from packer import pack, squish
+from packer import pack
 from setup import setup_scratch
 
 
@@ -85,28 +82,14 @@ class KernelBuilder:
         Scalar implementation using only scalar ALU and load/store.
         """
 
-        all_instrs = []
-
-        # Pause instructions are matched up with yield statements in the reference
-        # kernel to let you debug at intermediate steps. The testing harness in this
-        # file requires these match up to the reference kernel's yields, but the
-        # submission harness ignores them.
-        # all_instrs.append({"flow": [("pause",)]})
-        # Any debug engine instruction is ignored by the submission simulator
+        instrs = []
 
         # number of walker processed at a time
         group_size = 64
         num_phases = 2
 
         setup, const_operands, consts, tmps = setup_scratch(self.alloc_scratch, self.scratch_const, num_walkers, group_size, num_phases)
-
-        # all_instrs.extend(pack(setup, const_operands))
-        all_instrs.extend(setup)
-        # print("PACK: ")
-        # print(pack(setup, const_operands))
-        # print("SQUISH: ")
-        # print(squish(setup, const_operands))
-        # print(len(squish(setup, const_operands)))
+        instrs.extend(setup)
 
 
         # fully process groups of walkers at a time
@@ -114,41 +97,28 @@ class KernelBuilder:
 
             walker_idx_idx = (int)(walker_idx/(2*group_size))
 
-            walker_group_prologue = []
-
             # read in all walker group vals and idxs
-            walker_group_prologue.extend(gen_read_in_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
+            instrs.extend(gen_read_in_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
 
             # start pipeline
-            walker_group_prologue.extend(gen_hot_loop_prologue(group_size, consts, tmps))
-
-            all_instrs.extend(walker_group_prologue)
+            instrs.extend(gen_pipeline_ramp_up(group_size, consts, tmps))
 
             # main body of pipeline
             for round in range(1, 2*rounds):
 
-                hot_loop = gen_hot_loop(round, forest_height, consts["forest_values"], group_size, const_operands, tmps, consts)
-
-                all_instrs.extend(hot_loop)
-
-            walker_group_epilogue = []
+                 instrs.extend(gen_pipeline_iter(round, forest_height, consts["forest_values"], group_size, const_operands, tmps, consts))
 
             # finish pipeline
-            walker_group_epilogue.extend(gen_hot_loop_epilogue(rounds, forest_height, group_size, consts, tmps))
-
+            instrs.extend(gen_pipeline_ramp_down(rounds, forest_height, group_size, consts, tmps))
 
             # write out all walker group vals and idxs
-            walker_group_epilogue.extend(gen_write_out_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
-
-            all_instrs.extend(walker_group_epilogue)
+            instrs.extend(gen_write_out_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
 
 
-        packed_instrs = squish(all_instrs, const_operands)
-        # Required to match with the yield in reference_kernel2
+        packed_instrs = pack(instrs, const_operands)
+
+        # required to match with yields in reference_kernel2
         packed_instrs = [{"flow": [("pause",)]}] + packed_instrs + [{"flow": [("pause",)]}]
-        # print(packed_instrs)
-        # for p in packed_instrs:
-            # print(p)
 
         self.instrs.extend(packed_instrs)
 
