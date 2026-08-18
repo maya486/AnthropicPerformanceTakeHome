@@ -51,11 +51,23 @@ def gen_load_instrs_round_1(phase, group_size, consts, tmps):
 
     for i in range(group_size//VLEN):
         for lane in range(VLEN):
-            instrs.append(("alu", ("-", tmps["4s"][phase][i]+lane, tmps["idxs"][phase][i]+lane, consts["1"])))
+            instrs.append(("alu", ("-", tmps["1s"][phase][i]+lane, tmps["idxs"][phase][i]+lane, consts["1"])))
 
     for i in range(group_size//VLEN):
-        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["4s"][phase][i], tmps["3s"][16], tmps["3s"][8])))
+        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["1s"][phase][i], tmps["3s"][16], tmps["3s"][8])))
 
+
+    return instrs
+
+
+def gen_load_instrs_round_2(phase, group_size, consts, tmps):
+
+    instrs = []
+
+    for i in range(group_size//VLEN):
+        instrs.append(("flow", ("vselect", tmps["3s"][0], tmps["b0s"][phase][i], consts["v6"], consts["v4"])))
+        instrs.append(("flow", ("vselect", tmps["3s"][8], tmps["b0s"][phase][i], consts["v7"], consts["v5"])))
+        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["val_paritys"][phase][i], tmps["3s"][8], tmps["3s"][0])))
 
     return instrs
 

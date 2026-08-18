@@ -1,5 +1,5 @@
 from index_calculation_instrs import gen_index_calculation_instrs_generic
-from load_instrs import gen_load_instrs_generic, gen_load_instrs_round_0, gen_load_instrs_round_0_with_valu, gen_load_instrs_round_1
+from load_instrs import gen_load_instrs_generic, gen_load_instrs_round_0, gen_load_instrs_round_0_with_valu, gen_load_instrs_round_1, gen_load_instrs_round_2
 from hash_and_update_instrs import gen_hash_and_update_instrs_generic
 
 
@@ -18,7 +18,7 @@ def gen_pipeline_iter(round, forest_height, forest_values, group_size, const_ope
 
         return packed_load_instrs+packed_hash_and_update_instrs
 
-    # shortcut when at level 1 of tree (just 2 nodes)
+    # shortcut when at level 1 of tree (2 nodes)
     elif index_load_round == 1 or index_load_round == 12:
 
         packed_load_instrs = gen_load_instrs_round_1(index_load_phase, group_size, consts, tmps)
@@ -26,6 +26,13 @@ def gen_pipeline_iter(round, forest_height, forest_values, group_size, const_ope
 
         return packed_load_instrs+packed_hash_and_update_instrs
 
+    # shortcut when at level 2 of tree (4 nodes)
+    elif index_load_round == 2 or index_load_round == 13:
+
+        packed_load_instrs = gen_load_instrs_round_2(index_load_phase, group_size, consts, tmps)
+        packed_hash_and_update_instrs = gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts)
+
+        return packed_load_instrs+packed_hash_and_update_instrs
 
     # generic fallback with no shortcuts
     else:

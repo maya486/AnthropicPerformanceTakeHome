@@ -56,13 +56,27 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
         for i in range(group_size//VLEN):
             instrs.append(("valu", ("&", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["0"])));
     else:
+
         # idx = 2*idx + 1 + val&1
-        for i in range(group_size//VLEN):
-            instrs.append(("valu", ("&", tmps["val_paritys"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
-        for i in range(group_size//VLEN):
-            instrs.append(("valu", ("multiply_add", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["2"], hash_consts["1"])))
-        for i in range(group_size//VLEN):
-            instrs.append(("valu", ("+", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["val_paritys"][phase][i])))
+
+        # if at root need to record the parity into b0 for later level 2 optimization (see gen_load_instrs_round_2)
+        if round == 0 or round == 11:
+
+            for i in range(group_size//VLEN):
+                instrs.append(("valu", ("&", tmps["b0s"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
+            for i in range(group_size//VLEN):
+                instrs.append(("valu", ("multiply_add", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["2"], hash_consts["1"])))
+            for i in range(group_size//VLEN):
+                instrs.append(("valu", ("+", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["b0s"][phase][i])))
+
+        else:
+
+            for i in range(group_size//VLEN):
+                instrs.append(("valu", ("&", tmps["val_paritys"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
+            for i in range(group_size//VLEN):
+                instrs.append(("valu", ("multiply_add", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["2"], hash_consts["1"])))
+            for i in range(group_size//VLEN):
+                instrs.append(("valu", ("+", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["val_paritys"][phase][i])))
 
     return instrs 
 

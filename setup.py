@@ -5,16 +5,16 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     setup = []
 
     tmp1s = []
+    b0s = []
     tmp2s = []
-    tmp4s = []
     for p in range(num_phases):
         tmp1s.append([])
         tmp2s.append([])
-        tmp4s.append([])
+        b0s.append([])
         for walker_group_idx in range(group_size//VLEN):
             tmp1s[p].append(alloc_scratch(None, VLEN))
             tmp2s[p].append(alloc_scratch(None, VLEN))
-            tmp4s[p].append(alloc_scratch(None, VLEN))
+            b0s[p].append(alloc_scratch(None, VLEN))
 
     tmp3s = []
     for i in range(32):
@@ -56,7 +56,10 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     const_4096 = alloc_scratch(4096, VLEN)
     const_32 = alloc_scratch(32, VLEN)
     const_8 = alloc_scratch(8, VLEN)
-    const_512 = alloc_scratch(512, VLEN)
+    const_v4 = alloc_scratch("v4", VLEN)
+    const_v5 = alloc_scratch("v5", VLEN)
+    const_v6 = alloc_scratch("v6", VLEN)
+    const_v7 = alloc_scratch("v7", VLEN)
 
     tmp_scalar_const_zero = scratch_const(setup, 0)
     tmp_scalar_const_one = scratch_const(setup, 1)
@@ -70,7 +73,6 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     tmp_scalar_const_4096 = scratch_const(setup, 4096)
     tmp_scalar_const_32 = scratch_const(setup, 32)
     tmp_scalar_const_8 = scratch_const(setup, 8)
-    tmp_scalar_const_512 = scratch_const(setup, 512)
 
     forest_values = alloc_scratch(init_vars_scratch[0], VLEN)
 
@@ -86,8 +88,15 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     setup.append(("valu", ("vbroadcast", const_4096, tmp_scalar_const_4096)))
     setup.append(("valu", ("vbroadcast", const_32, tmp_scalar_const_32)))
     setup.append(("valu", ("vbroadcast", const_8, tmp_scalar_const_8)))
-    setup.append(("valu", ("vbroadcast", const_512, tmp_scalar_const_512)))
     setup.append(("valu", ("vbroadcast", forest_values, init_vars_scratch[0])))
+
+
+
+    setup.append(("load", ("vload", tmp1s[0][0], forest_values)))
+    setup.append(("valu", ("vbroadcast", const_v4, tmp1s[0][0]+3)))
+    setup.append(("valu", ("vbroadcast", const_v5, tmp1s[0][0]+4)))
+    setup.append(("valu", ("vbroadcast", const_v6, tmp1s[0][0]+5)))
+    setup.append(("valu", ("vbroadcast", const_v7, tmp1s[0][0]+6)))
 
     tmp_idxs = []
     tmp_vals = []
@@ -146,7 +155,6 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
         "16": const_sixteen,
         "19": const_nineteen,
         "32": const_32,
-        "512": const_512,
         "4096": const_4096,
         "0x7ED55D16": tmp_0x7ED55D16,
         "0xC761C23C": tmp_0xC761C23C,
@@ -157,6 +165,10 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
         "forest_values": forest_values,
         "inp_indices_p": init_vars_scratch[1],
         "inp_values_p": init_vars_scratch[2],
+        "v4": const_v4, 
+        "v5": const_v5, 
+        "v6": const_v6, 
+        "v7": const_v7, 
     }
 
     const_operands = list(consts.values())
@@ -172,7 +184,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
         "1s": tmp1s,
         "2s": tmp2s,
         "3s": tmp3s,
-        "4s": tmp4s,
+        "b0s": b0s,
     }
 
 
