@@ -18,7 +18,8 @@ def gen_hot_loop(round, forest_height, forest_values, group_size, const_operands
         # packed_hash_and_update_instrs = pack(gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts), const_operands)
         packed_load_instrs = gen_load_instrs_round_0(index_load_phase, group_size, consts, tmps)
         packed_hash_and_update_instrs = gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts)
-        return squish(packed_load_instrs+packed_hash_and_update_instrs, const_operands)
+        # return squish(packed_load_instrs+packed_hash_and_update_instrs, const_operands)
+        return packed_load_instrs+packed_hash_and_update_instrs
 
         # return merge_independent_instr_streams(packed_load_instrs, packed_hash_and_update_instrs)
 
@@ -30,7 +31,8 @@ def gen_hot_loop(round, forest_height, forest_values, group_size, const_operands
         packed_load_instrs = gen_load_instrs_round_1(index_load_phase, group_size, consts, tmps)
         packed_hash_and_update_instrs = gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts)
 
-        return squish(packed_load_instrs+packed_hash_and_update_instrs, const_operands)
+        # return squish(packed_load_instrs+packed_hash_and_update_instrs, const_operands)
+        return packed_load_instrs+packed_hash_and_update_instrs
 
         # return merge_independent_instr_streams(packed_load_instrs, packed_hash_and_update_instrs)
 
@@ -50,7 +52,8 @@ def gen_hot_loop_generic(hash_round, hash_phase, index_load_phase, forest_height
 
         load_instrs = gen_load_instrs_generic(index_load_phase, group_size, tmps)
         # printed_once = True
-        return squish(index_instrs+load_instrs+hash_and_update_instrs, const_operands)
+        # return squish(index_instrs+load_instrs+hash_and_update_instrs, const_operands)
+        return index_instrs+load_instrs+hash_and_update_instrs
 
     # if hash_round < 15:
     # else:

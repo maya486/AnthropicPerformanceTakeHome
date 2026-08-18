@@ -91,7 +91,7 @@ class KernelBuilder:
         # kernel to let you debug at intermediate steps. The testing harness in this
         # file requires these match up to the reference kernel's yields, but the
         # submission harness ignores them.
-        all_instrs.append({"flow": [("pause",)]})
+        # all_instrs.append({"flow": [("pause",)]})
         # Any debug engine instruction is ignored by the submission simulator
 
         # number of walker processed at a time
@@ -101,7 +101,7 @@ class KernelBuilder:
         setup, const_operands, consts, tmps = setup_scratch(self.alloc_scratch, self.scratch_const, num_walkers, group_size, num_phases)
 
         # all_instrs.extend(pack(setup, const_operands))
-        all_instrs.extend(squish(setup, const_operands))
+        all_instrs.extend(setup)
         # print("PACK: ")
         # print(pack(setup, const_operands))
         # print("SQUISH: ")
@@ -122,7 +122,7 @@ class KernelBuilder:
             # start pipeline
             walker_group_prologue.extend(gen_hot_loop_prologue(group_size, consts, tmps))
 
-            all_instrs.extend(squish(walker_group_prologue, const_operands))
+            all_instrs.extend(walker_group_prologue)
 
             # main body of pipeline
             for round in range(1, 2*rounds):
@@ -140,11 +140,15 @@ class KernelBuilder:
             # write out all walker group vals and idxs
             walker_group_epilogue.extend(gen_write_out_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
 
-            all_instrs.extend(squish(walker_group_epilogue, const_operands))
+            all_instrs.extend(walker_group_epilogue)
 
 
+        packed_instrs = squish(all_instrs, const_operands)
         # Required to match with the yield in reference_kernel2
-        all_instrs.append({"flow": [("pause",)]})
+        packed_instrs = [{"flow": [("pause",)]}] + packed_instrs + [{"flow": [("pause")]}]
+        # print(packed_instrs)
+        for p in packed_instrs:
+            print(p)
 
         self.instrs.extend(all_instrs)
 
