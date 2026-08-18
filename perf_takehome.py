@@ -122,7 +122,7 @@ class KernelBuilder:
             # start pipeline
             walker_group_prologue.extend(gen_hot_loop_prologue(group_size, consts, tmps))
 
-            all_instrs.extend(pack(walker_group_prologue, const_operands))
+            all_instrs.extend(squish(walker_group_prologue, const_operands))
 
             # main body of pipeline
             for round in range(1, 2*rounds):
@@ -140,7 +140,7 @@ class KernelBuilder:
             # write out all walker group vals and idxs
             walker_group_epilogue.extend(gen_write_out_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
 
-            all_instrs.extend(pack(walker_group_epilogue, const_operands))
+            all_instrs.extend(squish(walker_group_epilogue, const_operands))
 
 
         # Required to match with the yield in reference_kernel2

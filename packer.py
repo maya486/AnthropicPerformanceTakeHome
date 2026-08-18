@@ -1,4 +1,4 @@
-from problem import SLOT_LIMITS, Engine
+from problem import SLOT_LIMITS, Engine, VLEN
 
 
 def merge_independent_instr_streams(list_a, list_b):
@@ -88,7 +88,7 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
 
     return instrs
 
-def squish(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
+def squish(slots: list[tuple[Engine, tuple]], const_operands, verbose: bool = False):
     # simple slot packing that packs consecutive instructions together (no reordering)
 
     instrs = []
@@ -117,9 +117,25 @@ def squish(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False
             curr_write_operands = set()
             for e_name, e_slots in instrs[i].items():
                 # print(e)
-                for s in e_slots:
-                    curr_write_operands |= set([s[1]])
-                    curr_read_operands |= set(s[2:])
+
+                # valu have to add 7 other implicit regs
+                if e_name == "valu":
+                    for s in e_slots:
+                        # possible issue with valu ops not having lanes correctly handled in dependence tree analysis
+                        curr_write_operands |= set([s[1]])
+                        curr_read_operands |= set(s[2:])
+                        for j in range(VLEN):
+                            curr_write_operands |= set([s[1]+j])
+                            for reg in s[2:]:
+                                curr_read_operands |= set([reg+j])
+                else:
+                    for s in e_slots:
+                        # possible issue with valu ops not having lanes correctly handled in dependence tree analysis
+                        curr_write_operands |= set([s[1]])
+                        curr_read_operands |= set(s[2:])
+
+                            
+
 
             slot_counts = len(instrs[i][engine])
             # print("slot counts", slot_counts)
@@ -196,4 +212,9 @@ def squish(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False
     # if curr_instr["alu"] or curr_instr["valu"] or curr_instr["load"] or curr_instr["store"] or curr_instr["flow"]:
         # instrs.append(curr_instr)
 
+    # if verbose:
+        # # print(instrs)
+        # for i in instrs:
+            # print(i)
+        
     return instrs
