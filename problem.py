@@ -362,7 +362,6 @@ class Machine:
         }
         self.scratch_write = {}
         self.mem_write = {}
-        print(instr)
         for name, slots in instr.items():
             if name == "debug":
                 if not self.enable_debug:

@@ -145,12 +145,13 @@ class KernelBuilder:
 
         packed_instrs = squish(all_instrs, const_operands)
         # Required to match with the yield in reference_kernel2
-        packed_instrs = [{"flow": [("pause",)]}] + packed_instrs + [{"flow": [("pause")]}]
+        packed_instrs = [{"flow": [("pause",)]}] + packed_instrs + [{"flow": [("pause",)]}]
         # print(packed_instrs)
-        for p in packed_instrs:
-            print(p)
+        # for p in packed_instrs:
+            # print(p)
 
-        self.instrs.extend(all_instrs)
+        self.instrs.extend(packed_instrs)
+
 
 BASELINE = 147734
 

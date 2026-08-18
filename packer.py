@@ -88,6 +88,33 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands, vliw: bool = False):
 
     return instrs
 
+
+def update_vector(s, curr_write_operands, curr_read_operands):
+        # possible issue with valu ops not having lanes correctly handled in dependence tree analysis
+    curr_write_operands |= set([s[1]])
+    curr_read_operands |= set(s[2:])
+    for j in range(VLEN):
+        curr_write_operands |= set([s[1]+j])
+        for reg in s[2:]:
+            curr_read_operands |= set([reg+j])
+def update(s, curr_write_operands, curr_read_operands):
+    # possible issue with valu ops not having lanes correctly handled in dependence tree analysis
+    curr_write_operands |= set([s[1]])
+    curr_read_operands |= set(s[2:])
+def process_instr(e_name, e_slots, curr_write_operands, curr_read_operands):
+    # valu have to add 7 other implicit regs
+    if e_name == "valu":
+        for s in e_slots:
+            update_vector(s, curr_write_operands, curr_read_operands)
+    else:
+        for s in e_slots:
+            if s[0] in ["vload", "vstore", "vselect"]:
+                update_vector(s, curr_write_operands, curr_read_operands)
+            else:
+                update(s, curr_write_operands, curr_read_operands)
+
+
+
 def squish(slots: list[tuple[Engine, tuple]], const_operands, verbose: bool = False):
     # simple slot packing that packs consecutive instructions together (no reordering)
 
@@ -113,26 +140,11 @@ def squish(slots: list[tuple[Engine, tuple]], const_operands, verbose: bool = Fa
         placed_slot = False
         # last_valid_index =
         for i in range(len(instrs)-1, -1, -1):
-            curr_read_operands = set()
             curr_write_operands = set()
+            curr_read_operands = set()
             for e_name, e_slots in instrs[i].items():
                 # print(e)
-
-                # valu have to add 7 other implicit regs
-                if e_name == "valu":
-                    for s in e_slots:
-                        # possible issue with valu ops not having lanes correctly handled in dependence tree analysis
-                        curr_write_operands |= set([s[1]])
-                        curr_read_operands |= set(s[2:])
-                        for j in range(VLEN):
-                            curr_write_operands |= set([s[1]+j])
-                            for reg in s[2:]:
-                                curr_read_operands |= set([reg+j])
-                else:
-                    for s in e_slots:
-                        # possible issue with valu ops not having lanes correctly handled in dependence tree analysis
-                        curr_write_operands |= set([s[1]])
-                        curr_read_operands |= set(s[2:])
+                process_instr(e_name, e_slots, curr_write_operands, curr_read_operands)
 
                             
 
@@ -142,8 +154,11 @@ def squish(slots: list[tuple[Engine, tuple]], const_operands, verbose: bool = Fa
             # has_slot_space = slot_counts[engine] < SLOT_LIMITS[engine]
             has_slot_space = slot_counts < SLOT_LIMITS[engine]
             new_operands = set(slot[1:])
-            new_write_operands = set([slot[1]])
-            new_read_operands = set(slot[2:])
+            # new_write_operands = set([slot[1]])
+            # new_read_operands = set(slot[2:])
+            new_write_operands = set()
+            new_read_operands = set()
+            process_instr(engine, [slot], new_write_operands, new_read_operands)
 
             operand_intersection = (new_write_operands & curr_write_operands) | (new_write_operands & curr_read_operands) | (new_read_operands & curr_write_operands)
             has_invalid_dependence = operand_intersection - set(const_operands)
