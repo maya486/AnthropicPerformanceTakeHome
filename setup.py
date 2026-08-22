@@ -56,6 +56,8 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     const_4096 = alloc_scratch(4096, VLEN)
     const_32 = alloc_scratch(32, VLEN)
     const_8 = alloc_scratch(8, VLEN)
+    const_v2 = alloc_scratch("v2", VLEN)
+    const_v3 = alloc_scratch("v3", VLEN)
     const_v4 = alloc_scratch("v4", VLEN)
     const_v5 = alloc_scratch("v5", VLEN)
     const_v6 = alloc_scratch("v6", VLEN)
@@ -93,6 +95,8 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
 
 
     setup.append(("load", ("vload", tmp1s[0][0], forest_values)))
+    setup.append(("valu", ("vbroadcast", const_v2, tmp1s[0][0]+1)))
+    setup.append(("valu", ("vbroadcast", const_v3, tmp1s[0][0]+2)))
     setup.append(("valu", ("vbroadcast", const_v4, tmp1s[0][0]+3)))
     setup.append(("valu", ("vbroadcast", const_v5, tmp1s[0][0]+4)))
     setup.append(("valu", ("vbroadcast", const_v6, tmp1s[0][0]+5)))
@@ -165,6 +169,8 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
         "forest_values": forest_values,
         "inp_indices_p": init_vars_scratch[1],
         "inp_values_p": init_vars_scratch[2],
+        "v2": const_v2, 
+        "v3": const_v3, 
         "v4": const_v4, 
         "v5": const_v5, 
         "v6": const_v6, 
