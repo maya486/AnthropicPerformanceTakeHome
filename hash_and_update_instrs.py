@@ -102,9 +102,10 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
     if round == forest_height:
         # idx = 0
         for i in range(num_valu_groups):
-            instrs.append(("valu", ("&", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["0"])));
+            # instrs.append(("valu", ("^", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["idxs"][phase][i])));
+            instrs.append(("valu", ("*", tmps["addrs"][phase][i], hash_consts["forest_values"], hash_consts["1"])));
         for lane in range(VLEN):
-            instrs.append(("alu", ("&", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["0"])));
+            instrs.append(("alu", ("*", tmps["addrs"][phase][alu_group]+lane, hash_consts["forest_values"], hash_consts["1"])));
     else:
 
         # idx = 2*idx + 1 + val&1
@@ -112,19 +113,26 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
         # if at root need to record the parity into b0 for later level 2 optimization (see gen_load_instrs_round_2)
         if round == 0 or round == 11:
 
+            # b0 = parity
             for i in range(num_valu_groups):
                 instrs.append(("valu", ("&", tmps["b0s"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
             for lane in range(VLEN):
                 instrs.append(("alu", ("&", tmps["b0s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["1"])));
+
             for i in range(num_valu_groups):
-                instrs.append(("valu", ("multiply_add", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["2"], hash_consts["1"])))
+                # instrs.append(("valu", ("multiply_add", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["2"], hash_consts["1"])))
+                instrs.append(("valu", ("multiply_add", tmps["addrs"][phase][i], tmps["addrs"][phase][i], hash_consts["2"], hash_consts["fvo_minus_1"])))
             for lane in range(VLEN):
-                instrs.append(("alu", ("*", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["2"])))
-                instrs.append(("alu", ("+", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["1"])))
+                # instrs.append(("alu", ("*", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["2"])))
+                # instrs.append(("alu", ("+", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["1"])))
+                instrs.append(("alu", ("*", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, hash_consts["2"])))
+                instrs.append(("alu", ("+", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, hash_consts["fvo_minus_1"])))
+
             for i in range(num_valu_groups):
-                instrs.append(("valu", ("+", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["b0s"][phase][i])))
+                # instrs.append(("valu", ("+", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["b0s"][phase][i])))
+                instrs.append(("valu", ("+", tmps["addrs"][phase][i], tmps["addrs"][phase][i], tmps["b0s"][phase][i])))
             for lane in range(VLEN):
-                instrs.append(("alu", ("+", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, tmps["b0s"][phase][alu_group]+lane)))
+                instrs.append(("alu", ("+", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, tmps["b0s"][phase][alu_group]+lane)))
 
         else:
 
@@ -132,15 +140,22 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
                 instrs.append(("valu", ("&", tmps["val_paritys"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
             for lane in range(VLEN):
                 instrs.append(("alu", ("&", tmps["val_paritys"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["1"])));
+                
             for i in range(num_valu_groups):
-                instrs.append(("valu", ("multiply_add", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["2"], hash_consts["1"])))
+                # instrs.append(("valu", ("multiply_add", tmps["idxs"][phase][i], tmps["idxs"][phase][i], hash_consts["2"], hash_consts["1"])))
+                instrs.append(("valu", ("multiply_add", tmps["addrs"][phase][i], tmps["addrs"][phase][i], hash_consts["2"], hash_consts["fvo_minus_1"])))
             for lane in range(VLEN):
-                instrs.append(("alu", ("*", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["2"])))
-                instrs.append(("alu", ("+", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["1"])))
+                # instrs.append(("alu", ("*", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["2"])))
+                # instrs.append(("alu", ("+", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, hash_consts["1"])))
+                instrs.append(("alu", ("*", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, hash_consts["2"])))
+                instrs.append(("alu", ("+", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, hash_consts["fvo_minus_1"])))
+
             for i in range(num_valu_groups):
-                instrs.append(("valu", ("+", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["val_paritys"][phase][i])))
+                # instrs.append(("valu", ("+", tmps["idxs"][phase][i], tmps["idxs"][phase][i], tmps["val_paritys"][phase][i])))
+                instrs.append(("valu", ("+", tmps["addrs"][phase][i], tmps["addrs"][phase][i], tmps["val_paritys"][phase][i])))
             for lane in range(VLEN):
-                instrs.append(("alu", ("+", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, tmps["val_paritys"][phase][alu_group]+lane)))
+                # instrs.append(("alu", ("+", tmps["idxs"][phase][alu_group]+lane, tmps["idxs"][phase][alu_group]+lane, tmps["val_paritys"][phase][alu_group]+lane)))
+                instrs.append(("alu", ("+", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, tmps["val_paritys"][phase][alu_group]+lane)))
 
     return instrs 
 
