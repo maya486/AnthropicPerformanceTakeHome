@@ -40,9 +40,8 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     for v in init_vars:
         init_vars_scratch.append(alloc_scratch(v, 1))
     for i, v in enumerate(init_vars):
-        setup.append(("load", ("const", tmp1s[0][i], i+4))) # +4 bc forest_values_p starts at memory location 4
-    for i, v in enumerate(init_vars):
-        setup.append(("load", ("load", init_vars_scratch[i], tmp1s[0][i])))
+        setup.append(("load", ("const", tmp1s[0][0], i+4))) # +4 bc forest_values_p starts at memory location 4
+        setup.append(("load", ("load", init_vars_scratch[i], tmp1s[0][0])))
 
     const_one = alloc_scratch(1, VLEN)
     const_two = alloc_scratch(2, VLEN)
