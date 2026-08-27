@@ -135,8 +135,8 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     setup.append(("valu", ("vbroadcast", tmp_0xB55A4F09, const_0xB55A4F09)))
 
     walker_idxs = []
-    for walker_idx in range(0, num_walkers, 2*group_size):
-        walker_idx_idx = (int)(walker_idx/(2*group_size))
+    for walker_idx in range(0, num_walkers, num_phases*group_size):
+        walker_idx_idx = (int)(walker_idx/(num_phases*group_size))
         walker_idxs.append([])
         for phase in range(num_phases):
             walker_idxs[walker_idx_idx].append([])

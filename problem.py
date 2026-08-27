@@ -267,6 +267,7 @@ class Machine:
                 raise NotImplementedError(f"Unknown valu op {slot}")
 
     def load(self, core, *slot):
+        # print(slot)
         match slot:
             case ("load", dest, addr):
                 # print(dest, addr, core.scratch[addr])

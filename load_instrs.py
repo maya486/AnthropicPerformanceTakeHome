@@ -1,5 +1,20 @@
 from problem import VLEN
 
+
+def gen_load_instrs(load_round, load_phase, global_round, group_size, consts, tmps):
+
+    if global_round == 0:
+        return gen_load_instrs_round_0_with_valu(load_phase, group_size, consts, tmps)
+    elif load_round == 0 or load_round == 11:
+        return gen_load_instrs_round_0(load_phase, group_size, consts, tmps)
+    elif load_round == 1 or load_round == 12:
+        return gen_load_instrs_round_1(load_phase, group_size, consts, tmps)
+    elif load_round == 2 or load_round == 13:
+        return gen_load_instrs_round_2(load_phase, group_size, consts, tmps)
+    else:
+        return gen_load_instrs_generic(load_phase, group_size, tmps)
+        
+
 def gen_load_instrs_generic(phase, group_size, tmps):
 
     # node_val = mem[addr]

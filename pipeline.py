@@ -1,5 +1,76 @@
 from hash_and_update_instrs import gen_hash_and_update_instrs_generic
-from load_instrs import gen_load_instrs_round_0_with_valu, gen_load_instrs_round_0, gen_load_instrs_round_1, gen_load_instrs_round_2, gen_load_instrs_generic
+from load_instrs import gen_load_instrs_round_0_with_valu, gen_load_instrs_round_0, gen_load_instrs_round_1, gen_load_instrs_round_2, gen_load_instrs_generic, gen_load_instrs
+
+from enum import Enum
+
+
+class Work(Enum):
+    LOAD = 0
+    HASH = 1
+    NONE = 2
+
+class Group(Enum):
+    A = 0
+    B = 1
+    C = 2
+    D = 3
+
+# WORK_SCHEDULE = [
+    # [(Work.LOAD, 0), (Work.NONE, -1), (Work.NONE, -1), (Work.NONE, -1)]
+    # [(Work.HASH, 0), (Work.LOAD, 0), (Work.NONE, -1), (Work.NONE, -1)]
+    # [(Work.LOAD, 1), (Work.HASH, 0), (Work.NONE, -1), (Work.NONE, -1)]
+    # [(Work.HASH, 1), (Work.HASH, 1), (Work.NONE, -1), (Work.NONE, -1)]
+    # [(Work.LOAD, 2), (Work.NONE, 1), (Work.NONE, -1), (Work.NONE, -1)]
+    # [(Work.HASH, 2), (Work.HASH, 2), (Work.NONE, -1), (Work.NONE, -1)]
+# ]
+
+def gen_work_schedule(rounds, pipeline_offset):
+
+    total_num_iters = rounds*2+pipeline_offset+1
+    work_schedule = []
+
+    for i in range(total_num_iters):
+        work_schedule.append([(Work.NONE, -1), 
+                              (Work.NONE, -1), 
+                              (Work.NONE, -1), 
+                              (Work.NONE, -1)])
+
+    for r in range(rounds):
+
+        # schedule in group A
+        work_schedule[2*r][0] = (Work.LOAD, r)
+        work_schedule[2*r+1][0] = (Work.HASH, r)
+
+        # schedule in group B
+        work_schedule[2*r+1][1] = (Work.LOAD, r)
+        work_schedule[2*r+2][1] = (Work.HASH, r)
+
+        # schedule in group C
+        work_schedule[2*r+pipeline_offset][2] = (Work.LOAD, r)
+        work_schedule[2*r+1+pipeline_offset][2] = (Work.HASH, r)
+
+        # schedule in group D
+        work_schedule[2*r+1+pipeline_offset][3] = (Work.LOAD, r)
+        work_schedule[2*r+2+pipeline_offset][3] = (Work.HASH, r)
+
+    return work_schedule
+
+
+def gen_iter(round, work_schedule, rounds, forest_height, forest_values, group_size, const_operands, tmps, consts):
+
+    instrs = []
+
+    for i in range(4): # [A, B, C, D] aka phase
+
+        work, work_round = work_schedule[round][i]
+        if work == Work.LOAD:
+            instrs += gen_load_instrs(work_round, i, round, group_size, consts, tmps)
+        elif work == Work.HASH:
+            instrs += gen_hash_and_update_instrs_generic(work_round, i, forest_height, group_size, tmps, consts)
+
+    return instrs
+
+    
 
 
 def gen_pipeline_iter(round, forest_height, forest_values, group_size, const_operands, tmps, consts):
