@@ -1,6 +1,5 @@
-from index_calculation_instrs import gen_index_calculation_instrs_generic
-from load_instrs import gen_load_instrs_generic, gen_load_instrs_round_0, gen_load_instrs_round_0_with_valu, gen_load_instrs_round_1, gen_load_instrs_round_2
 from hash_and_update_instrs import gen_hash_and_update_instrs_generic
+from load_instrs import gen_load_instrs_round_0_with_valu, gen_load_instrs_round_0, gen_load_instrs_round_1, gen_load_instrs_round_2, gen_load_instrs_generic
 
 
 def gen_pipeline_iter(round, forest_height, forest_values, group_size, const_operands, tmps, consts):
@@ -42,10 +41,9 @@ def gen_pipeline_iter(round, forest_height, forest_values, group_size, const_ope
 def gen_pipeline_iter_generic(hash_round, hash_phase, index_load_phase, forest_height, forest_values, group_size, const_operands, tmps, consts):
 
     hash_and_update_instrs = gen_hash_and_update_instrs_generic(hash_round, hash_phase, forest_height, group_size, tmps, consts)
-    index_instrs = gen_index_calculation_instrs_generic(index_load_phase, group_size, consts, tmps)
     load_instrs = gen_load_instrs_generic(index_load_phase, group_size, tmps)
 
-    return index_instrs+load_instrs+hash_and_update_instrs
+    return load_instrs+hash_and_update_instrs
 
 
 def gen_pipeline_ramp_up(group_size, consts, tmps):
