@@ -29,6 +29,31 @@ def process_instr(e_name, e_slots, curr_write_operands, curr_read_operands):
                 update_rw_operands_with_slot(s, curr_write_operands, curr_read_operands)
 
 
+def insert_slot(slot, engine, idx, instrs):
+
+    if len(instrs) == 0:
+        curr_instr = {
+            "alu": [],
+            "valu": [],
+            "load": [],
+            "store": [],
+            "flow": []
+        }
+        curr_instr[engine].append(slot)
+        instrs.append(curr_instr)
+    elif idx == len(instrs):
+        curr_instr = {
+            "alu": [],
+            "valu": [],
+            "load": [],
+            "store": [],
+            "flow": []
+        }
+        curr_instr[engine].append(slot)
+        instrs.append(curr_instr)
+    else:
+        instrs[idx][engine].append(slot)
+
 
 def pack(slots: list[tuple[Engine, tuple]], const_operands):
     # packs slots by inserting each slot into the earliest instruction that doesn't violate data dependencies
@@ -38,13 +63,12 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands):
     instrs = []
 
     for engine, slot in slots:
-        placed_slot = False
+        earliest_insertion_idx = len(instrs)
 
         # iterate backward through instr list to find earliest place for slot
         for i in range(len(instrs)-1, -1, -1):
 
-            # determine whether slot has any data dependency conflicts 
-            # with current instruction
+            # determine whether slot has any data dependency conflicts with current instruction
             curr_write_operands = set()
             curr_read_operands = set()
             for e_name, e_slots in instrs[i].items():
@@ -61,38 +85,14 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands):
             slot_counts = len(instrs[i][engine])
             has_slot_space = slot_counts < SLOT_LIMITS[engine]
 
-            # if slot cannot be added to instruction, insert it into instruction after
-            if not has_slot_space or has_invalid_dependence:
-                if i == len(instrs)-1:
-                    curr_instr = {
-                        "alu": [],
-                        "valu": [],
-                        "load": [],
-                        "store": [],
-                        "flow": []
-                    }
-                    curr_instr[engine].append(slot)
-                    instrs.append(curr_instr)
-                else:
-                    instrs[i+1][engine].append(slot)
-
-                placed_slot = True
+            if has_invalid_dependence:
                 break
 
+            if not has_slot_space:
+                continue
 
-        # if slot hasn't already been placed (doesn't conflict anywhere) then it can be inserted into beginning
-        if not placed_slot:
-            if len(instrs) == 0:
-                curr_instr = {
-                    "alu": [],
-                    "valu": [],
-                    "load": [],
-                    "store": [],
-                    "flow": []
-                }
-                curr_instr[engine].append(slot)
-                instrs.append(curr_instr)
-            else:
-                instrs[0][engine].append(slot)
+            earliest_insertion_idx = i
+
+        insert_slot(slot, engine, earliest_insertion_idx, instrs)
 
     return instrs
