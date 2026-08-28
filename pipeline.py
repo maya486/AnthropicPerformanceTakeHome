@@ -29,14 +29,26 @@ class Group(Enum):
 
 def gen_work_schedule(rounds, pipeline_offset):
 
-    total_num_iters = rounds*2+pipeline_offset+3
+    total_num_iters = 4*(rounds*2+pipeline_offset+3)
     work_schedule = []
 
     for i in range(total_num_iters):
         work_schedule.append([(Work.NONE, -1), 
                               (Work.NONE, -1), 
                               (Work.NONE, -1), 
+                              (Work.NONE, -1), 
+                              (Work.NONE, -1), 
+                              (Work.NONE, -1), 
+                              (Work.NONE, -1), 
                               (Work.NONE, -1)])
+
+
+    pipeline_offset_2 = 1
+
+    e_offset = pipeline_offset_2+2*rounds+2
+    f_offset = pipeline_offset_2+2*rounds+3
+    g_offset = pipeline_offset_2+2*rounds+2+pipeline_offset
+    h_offset = pipeline_offset_2+2*rounds+3+pipeline_offset
 
     for r in range(rounds):
 
@@ -46,11 +58,23 @@ def gen_work_schedule(rounds, pipeline_offset):
         work_schedule[2*r+2][0] = (Work.HASH, r)
         work_schedule[2*rounds+1][0] = (Work.WRITE_OUT, -1)
 
+        # schedule in group E
+        work_schedule[e_offset+0][0] = (Work.READ_IN, -1)
+        work_schedule[e_offset+2*r+1][0] = (Work.LOAD, r)
+        work_schedule[e_offset+2*r+2][0] = (Work.HASH, r)
+        work_schedule[e_offset+2*rounds+1][0] = (Work.WRITE_OUT, -1)
+
         # schedule in group B
         work_schedule[1][1] = (Work.READ_IN, -1)
         work_schedule[2*r+2][1] = (Work.LOAD, r)
         work_schedule[2*r+3][1] = (Work.HASH, r)
         work_schedule[2*rounds+2][1] = (Work.WRITE_OUT, -1)
+
+        # schedule in group F
+        work_schedule[f_offset+1][1] = (Work.READ_IN, -1)
+        work_schedule[f_offset+2*r+2][1] = (Work.LOAD, r)
+        work_schedule[f_offset+2*r+3][1] = (Work.HASH, r)
+        work_schedule[f_offset+2*rounds+2][1] = (Work.WRITE_OUT, -1)
 
         # schedule in group C
         work_schedule[pipeline_offset][2] = (Work.READ_IN, -1)
@@ -58,20 +82,39 @@ def gen_work_schedule(rounds, pipeline_offset):
         work_schedule[2*r+2+pipeline_offset][2] = (Work.HASH, r)
         work_schedule[2*rounds+1+pipeline_offset][2] = (Work.WRITE_OUT, -1)
 
+        # schedule in group G
+        work_schedule[g_offset+pipeline_offset][2] = (Work.READ_IN, -1)
+        work_schedule[g_offset+2*r+1+pipeline_offset][2] = (Work.LOAD, r)
+        work_schedule[g_offset+2*r+2+pipeline_offset][2] = (Work.HASH, r)
+        work_schedule[g_offset+2*rounds+1+pipeline_offset][2] = (Work.WRITE_OUT, -1)
+
         # schedule in group D
         work_schedule[1+pipeline_offset][3] = (Work.READ_IN, -1)
         work_schedule[2*r+2+pipeline_offset][3] = (Work.LOAD, r)
         work_schedule[2*r+3+pipeline_offset][3] = (Work.HASH, r)
         work_schedule[2*rounds+2+pipeline_offset][3] = (Work.WRITE_OUT, -1)
 
-    return work_schedule
+        # schedule in group H
+        work_schedule[h_offset+1+pipeline_offset][3] = (Work.READ_IN, -1)
+        work_schedule[h_offset+2*r+2+pipeline_offset][3] = (Work.LOAD, r)
+        work_schedule[h_offset+2*r+3+pipeline_offset][3] = (Work.HASH, r)
+        work_schedule[h_offset+2*rounds+2+pipeline_offset][3] = (Work.WRITE_OUT, -1)
+
+    offsets = [e_offset, f_offset, g_offset, h_offset]
+
+    return work_schedule, offsets
 
 
-def gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, forest_values, group_size, const_operands, tmps, consts):
+def gen_iter(round, work_schedule, offsets, rounds, forest_height, forest_values, group_size, const_operands, tmps, consts):
 
     instrs = []
 
     for i in range(4): # [A, B, C, D] aka phase
+
+        if round < offsets[i]:
+            walker_idx_idx = 0
+        else:
+            walker_idx_idx = 1
 
         work, work_round = work_schedule[round][i]
         if work == Work.LOAD:

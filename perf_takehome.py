@@ -95,18 +95,18 @@ class KernelBuilder:
 
         # fully process groups of walkers at a time
         # for walker_idx in range(0, num_walkers, 2*group_size):
-        for walker_idx in range(0, num_walkers, num_phases*group_size):
+        # for walker_idx in range(0, num_walkers, num_phases*group_size):
 
-            walker_idx_idx = (int)(walker_idx/(num_phases*group_size))
+            # walker_idx_idx = (int)(walker_idx/(num_phases*group_size))
 
             # read in all walker group vals and idxs
             # instrs.extend(gen_read_in_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
 
 
             # DO WORK
-            work_schedule = gen_work_schedule(rounds, pipeline_offset)
-            for round in range(len(work_schedule)):
-                instrs.extend(gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, consts["forest_values"], group_size, const_operands, tmps, consts))
+        work_schedule, offsets = gen_work_schedule(rounds, pipeline_offset)
+        for round in range(len(work_schedule)):
+            instrs.extend(gen_iter(round, work_schedule, offsets, rounds, forest_height, consts["forest_values"], group_size, const_operands, tmps, consts))
 
             # # start pipeline
             # instrs.extend(gen_pipeline_ramp_up(group_size, consts, tmps))
