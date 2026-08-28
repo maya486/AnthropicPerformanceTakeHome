@@ -6,50 +6,50 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
     # one group uses the alu instead of the valu
     # num_valu_groups = (group_size//VLEN) - 1
     num_valu_groups = (group_size//VLEN)
-    alu_group = num_valu_groups
+    alu_group = num_valu_groups - 1
 
     # val = val ^ node_val
 
-    for i in range(num_valu_groups):
+    for i in range(num_valu_groups-1):
         instrs.append(("valu", ("^", tmps["vals"][phase][i], tmps["vals"][phase][i], tmps["node_vals"][phase][i])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("^", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["node_vals"][phase][alu_group]+lane)))
+    for lane in range(VLEN):
+        instrs.append(("alu", ("^", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["node_vals"][phase][alu_group]+lane)))
 
     # the hash function has 6 stages
 
     # stage 1
-    for i in range(num_valu_groups):
+    for i in range(num_valu_groups-1):
         instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0x7ED55D16"])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0x7ED55D16"])))
+    for lane in range(VLEN):
+        instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0x7ED55D16"])))
 
-    for i in range(num_valu_groups):
+    for i in range(num_valu_groups-1):
         instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["4096"], tmps["1s"][phase][i])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("*", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["4096"])))
-        # instrs.append(("alu", ("+", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane)))
+    for lane in range(VLEN):
+        instrs.append(("alu", ("*", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["4096"])))
+        instrs.append(("alu", ("+", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane)))
 
     # stage 2
-    for i in range(num_valu_groups):
+    for i in range(num_valu_groups-1):
         instrs.append(("valu", ("^", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xC761C23C"])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("^", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xC761C23C"])))
+    for lane in range(VLEN):
+        instrs.append(("alu", ("^", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xC761C23C"])))
 
-    for i in range(num_valu_groups):
+    for i in range(num_valu_groups-1):
         instrs.append(("valu", (">>", tmps["2s"][phase][i], tmps["vals"][phase][i], hash_consts["19"])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", (">>", tmps["2s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["19"])))
+    for lane in range(VLEN):
+        instrs.append(("alu", (">>", tmps["2s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["19"])))
 
-    for i in range(num_valu_groups):
+    for i in range(num_valu_groups-1):
         instrs.append(("valu", ("^", tmps["vals"][phase][i], tmps["1s"][phase][i], tmps["2s"][phase][i])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("^", tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane, tmps["2s"][phase][alu_group]+lane)))
+    for lane in range(VLEN):
+        instrs.append(("alu", ("^", tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane, tmps["2s"][phase][alu_group]+lane)))
 
     # stage 3
-    for i in range(num_valu_groups):
+    for i in range(num_valu_groups-1):
         instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0x165667B1"])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0x165667B1"])))
+    for lane in range(VLEN):
+        instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0x165667B1"])))
 
     for i in range(num_valu_groups):
         instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["32"], tmps["1s"][phase][i])))
