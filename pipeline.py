@@ -1,5 +1,6 @@
 from hash_and_update_instrs import gen_hash_and_update_instrs_generic
 from load_instrs import gen_load_instrs_round_0_with_valu, gen_load_instrs_round_0, gen_load_instrs_round_1, gen_load_instrs_round_2, gen_load_instrs_generic, gen_load_instrs
+from walker_group import gen_write_out_instrs, gen_read_in_instrs
 
 from enum import Enum
 
@@ -7,7 +8,9 @@ from enum import Enum
 class Work(Enum):
     LOAD = 0
     HASH = 1
-    NONE = 2
+    READ_IN = 2
+    WRITE_OUT = 3
+    NONE = 4
 
 class Group(Enum):
     A = 0
@@ -26,7 +29,7 @@ class Group(Enum):
 
 def gen_work_schedule(rounds, pipeline_offset):
 
-    total_num_iters = rounds*2+pipeline_offset+1
+    total_num_iters = rounds*2+pipeline_offset+3
     work_schedule = []
 
     for i in range(total_num_iters):
@@ -38,25 +41,33 @@ def gen_work_schedule(rounds, pipeline_offset):
     for r in range(rounds):
 
         # schedule in group A
-        work_schedule[2*r][0] = (Work.LOAD, r)
-        work_schedule[2*r+1][0] = (Work.HASH, r)
+        work_schedule[0][0] = (Work.READ_IN, -1)
+        work_schedule[2*r+1][0] = (Work.LOAD, r)
+        work_schedule[2*r+2][0] = (Work.HASH, r)
+        work_schedule[2*rounds+1][0] = (Work.WRITE_OUT, -1)
 
         # schedule in group B
-        work_schedule[2*r+1][1] = (Work.LOAD, r)
-        work_schedule[2*r+2][1] = (Work.HASH, r)
+        work_schedule[1][1] = (Work.READ_IN, -1)
+        work_schedule[2*r+2][1] = (Work.LOAD, r)
+        work_schedule[2*r+3][1] = (Work.HASH, r)
+        work_schedule[2*rounds+2][1] = (Work.WRITE_OUT, -1)
 
         # schedule in group C
-        work_schedule[2*r+pipeline_offset][2] = (Work.LOAD, r)
-        work_schedule[2*r+1+pipeline_offset][2] = (Work.HASH, r)
+        work_schedule[pipeline_offset][2] = (Work.READ_IN, -1)
+        work_schedule[2*r+1+pipeline_offset][2] = (Work.LOAD, r)
+        work_schedule[2*r+2+pipeline_offset][2] = (Work.HASH, r)
+        work_schedule[2*rounds+1+pipeline_offset][2] = (Work.WRITE_OUT, -1)
 
         # schedule in group D
-        work_schedule[2*r+1+pipeline_offset][3] = (Work.LOAD, r)
-        work_schedule[2*r+2+pipeline_offset][3] = (Work.HASH, r)
+        work_schedule[1+pipeline_offset][3] = (Work.READ_IN, -1)
+        work_schedule[2*r+2+pipeline_offset][3] = (Work.LOAD, r)
+        work_schedule[2*r+3+pipeline_offset][3] = (Work.HASH, r)
+        work_schedule[2*rounds+2+pipeline_offset][3] = (Work.WRITE_OUT, -1)
 
     return work_schedule
 
 
-def gen_iter(round, work_schedule, rounds, forest_height, forest_values, group_size, const_operands, tmps, consts):
+def gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, forest_values, group_size, const_operands, tmps, consts):
 
     instrs = []
 
@@ -67,6 +78,10 @@ def gen_iter(round, work_schedule, rounds, forest_height, forest_values, group_s
             instrs += gen_load_instrs(work_round, i, round, group_size, consts, tmps)
         elif work == Work.HASH:
             instrs += gen_hash_and_update_instrs_generic(work_round, i, forest_height, group_size, tmps, consts)
+        elif work == Work.READ_IN:
+            instrs += gen_read_in_instrs(walker_idx_idx, i, group_size, tmps, consts)
+        elif work == Work.WRITE_OUT:
+            instrs += gen_write_out_instrs(walker_idx_idx, i, group_size, tmps, consts)
 
     return instrs
 
