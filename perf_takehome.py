@@ -87,7 +87,7 @@ class KernelBuilder:
         # number of walker processed at a time
         group_size = 32
         num_phases = 4
-        pipeline_offset = 11
+        pipeline_offset = 10
 
         setup, const_operands, consts, tmps = setup_scratch(self.alloc_scratch, self.scratch_const, num_walkers, group_size, num_phases)
         instrs.extend(setup)
