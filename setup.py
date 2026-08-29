@@ -1,17 +1,20 @@
 from problem import VLEN
+from group_partition import GROUPS, GROUP_VECS, NUM_GROUPS, CHUNK_SIZE, GROUPS_PREFIX_SUM
 
-def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_phases):
+def setup_scratch(alloc_scratch, scratch_const, num_walkers):
 
     setup = []
 
     tmp1s = []
     b0s = []
     tmp2s = []
-    for p in range(num_phases):
+    # for p in range(num_phases):
+    for p in range(NUM_GROUPS):
         tmp1s.append([])
         tmp2s.append([])
         b0s.append([])
-        for walker_group_idx in range(group_size//VLEN):
+        # for walker_group_idx in range(group_size//VLEN):
+        for walker_group_idx in range(GROUP_VECS[p]):
             tmp1s[p].append(alloc_scratch(None, VLEN))
             tmp2s[p].append(alloc_scratch(None, VLEN))
             b0s[p].append(alloc_scratch(None, VLEN))
@@ -102,12 +105,14 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     tmp_node_vals = []
     tmp_addrs = []
     tmp_val_paritys = []
-    for p in range(num_phases):
+    # for p in range(num_phases):
+    for p in range(NUM_GROUPS):
         tmp_vals.append([])
         tmp_node_vals.append([])
         tmp_addrs.append([])
         tmp_val_paritys.append([])
-        for walker_group_idx in range(group_size//VLEN):
+        # for walker_group_idx in range(group_size//VLEN):
+        for walker_group_idx in range(GROUP_VECS[p]):
             tmp_vals[p].append(alloc_scratch(None, VLEN))
             tmp_node_vals[p].append(alloc_scratch(None, VLEN))
             tmp_addrs[p].append(alloc_scratch(None, VLEN))
@@ -135,13 +140,16 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers, group_size, num_pha
     setup.append(("valu", ("vbroadcast", tmp_0xB55A4F09, const_0xB55A4F09)))
 
     walker_idxs = []
-    for walker_idx in range(0, num_walkers, num_phases*group_size):
-        walker_idx_idx = (int)(walker_idx/(num_phases*group_size))
+    for walker_idx in range(0, num_walkers, CHUNK_SIZE):
+        walker_idx_idx = (int)(walker_idx/(CHUNK_SIZE))
         walker_idxs.append([])
-        for phase in range(num_phases):
+        # for phase in range(num_phases):
+        for p in range(NUM_GROUPS):
             walker_idxs[walker_idx_idx].append([])
-            for i in range(group_size//VLEN):
-                walker_idxs[walker_idx_idx][phase].append(scratch_const(setup, group_size*phase+walker_idx+VLEN*i))
+            # for i in range(group_size//VLEN):
+            for i in range(GROUP_VECS[p]):
+                # walker_idxs[walker_idx_idx][p].append(scratch_const(setup, group_size*phase+walker_idx+VLEN*i))
+                walker_idxs[walker_idx_idx][p].append(scratch_const(setup, GROUPS_PREFIX_SUM[p]+walker_idx+VLEN*i))
 
 
     setup.append(("valu", ("-", const_1_minus_fvo, const_one, forest_values)))
