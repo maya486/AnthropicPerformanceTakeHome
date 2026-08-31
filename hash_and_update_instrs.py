@@ -23,11 +23,11 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
     for lane in range(VLEN):
         instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0x7ED55D16"])))
 
-    for i in range(num_valu_groups-1):
+    for i in range(num_valu_groups):
         instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["4096"], tmps["1s"][phase][i])))
-    for lane in range(VLEN):
-        instrs.append(("alu", ("*", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["4096"])))
-        instrs.append(("alu", ("+", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane)))
+    # for lane in range(VLEN):
+        # instrs.append(("alu", ("*", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["4096"])))
+        # instrs.append(("alu", ("+", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane)))
 
     # stage 2
     for i in range(num_valu_groups-1):
