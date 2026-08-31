@@ -6,9 +6,9 @@ from group_partition import GROUPS, GROUP_VECS, NUM_GROUPS
 from enum import Enum
 
 
-OFFSET_1 = 7
-OFFSET_2 = 4
-OFFSET_3 = 4
+OFFSET_1 = 5
+OFFSET_2 = 5
+OFFSET_3 = 5
 
 
 class Work(Enum):
@@ -20,11 +20,18 @@ class Work(Enum):
 
 def gen_work_schedule(rounds):
 
-    # total_num_iters = rounds*2+OFFSET_1+3
-    total_num_iters = 200
+    a_offset = 0
+    b_offset = a_offset+1
+    c_offset = OFFSET_1
+    d_offset = c_offset+1
+    e_offset = OFFSET_1+OFFSET_2
+    f_offset = e_offset+1
+    g_offset = OFFSET_1+OFFSET_2+OFFSET_3
+    h_offset = g_offset+1
+
     work_schedule = []
 
-    for i in range(total_num_iters):
+    for i in range(h_offset+2*rounds+2):
         work_schedule.append([(Work.NONE, -1), 
                               (Work.NONE, -1), 
                               (Work.NONE, -1), 
@@ -34,43 +41,17 @@ def gen_work_schedule(rounds):
                               (Work.NONE, -1), 
                               (Work.NONE, -1)])
 
-    for r in range(rounds):
+    offsets = [a_offset, b_offset, c_offset, d_offset,
+               e_offset, f_offset, g_offset, h_offset]
 
-        # schedule in group A
-        work_schedule[0][0] = (Work.READ_IN, -1)
-        work_schedule[2*r+1][0] = (Work.LOAD, r)
-        work_schedule[2*r+2][0] = (Work.HASH, r)
-        work_schedule[2*rounds+1][0] = (Work.WRITE_OUT, -1)
+    for i in range(len(offsets)):
 
-        # schedule in group B
-        work_schedule[1][1] = (Work.READ_IN, -1)
-        work_schedule[2*r+2][1] = (Work.LOAD, r)
-        work_schedule[2*r+3][1] = (Work.HASH, r)
-        work_schedule[2*rounds+2][1] = (Work.WRITE_OUT, -1)
+        work_schedule[offsets[i]+0][i] = (Work.READ_IN, -1)
+        work_schedule[offsets[i]+2*rounds+1][i] = (Work.WRITE_OUT, -1)
 
-        # schedule in group C
-        work_schedule[OFFSET_1][2] = (Work.READ_IN, -1)
-        work_schedule[2*r+1+OFFSET_1][2] = (Work.LOAD, r)
-        work_schedule[2*r+2+OFFSET_1][2] = (Work.HASH, r)
-        work_schedule[2*rounds+1+OFFSET_1][2] = (Work.WRITE_OUT, -1)
-
-        # schedule in group D
-        work_schedule[1+OFFSET_1][3] = (Work.READ_IN, -1)
-        work_schedule[2*r+2+OFFSET_1][3] = (Work.LOAD, r)
-        work_schedule[2*r+3+OFFSET_1][3] = (Work.HASH, r)
-        work_schedule[2*rounds+2+OFFSET_1][3] = (Work.WRITE_OUT, -1)
-
-        # schedule in group E
-        work_schedule[OFFSET_2+OFFSET_1][4] = (Work.READ_IN, -1)
-        work_schedule[OFFSET_2+2*r+1+OFFSET_1][4] = (Work.LOAD, r)
-        work_schedule[OFFSET_2+2*r+2+OFFSET_1][4] = (Work.HASH, r)
-        work_schedule[OFFSET_2+2*rounds+1+OFFSET_1][4] = (Work.WRITE_OUT, -1)
-
-        # schedule in group F
-        work_schedule[OFFSET_2+1+OFFSET_1][5] = (Work.READ_IN, -1)
-        work_schedule[OFFSET_2+2*r+2+OFFSET_1][5] = (Work.LOAD, r)
-        work_schedule[OFFSET_2+2*r+3+OFFSET_1][5] = (Work.HASH, r)
-        work_schedule[OFFSET_2+2*rounds+2+OFFSET_1][5] = (Work.WRITE_OUT, -1)
+        for r in range(rounds):
+            work_schedule[offsets[i]+2*r+1][i] = (Work.LOAD, r)
+            work_schedule[offsets[i]+2*r+2][i] = (Work.HASH, r)
 
     return work_schedule
 
@@ -79,7 +60,7 @@ def gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, forest
 
     instrs = []
 
-    for i in range(6): # [A, B, C, D, E, F] aka phase
+    for i in range(NUM_GROUPS):
 
         work, work_round = work_schedule[round][i]
         if work == Work.LOAD:
