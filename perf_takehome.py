@@ -85,46 +85,20 @@ class KernelBuilder:
 
         instrs = []
 
-        # number of walker processed at a time
-        # group_size = 32
-        # num_phases = 4
-        num_phases = len(GROUPS)
-        pipeline_offset = 7
-        pipeline_offset_2 = 4
 
         setup, const_operands, consts, tmps = setup_scratch(self.alloc_scratch, self.scratch_const, num_walkers)
         instrs.extend(setup)
 
 
         # fully process groups of walkers at a time
-        # for walker_idx in range(0, num_walkers, 2*group_size):
-        # for walker_idx in range(0, num_walkers, num_phases*group_size):
         for walker_idx in range(0, num_walkers, CHUNK_SIZE):
 
             walker_idx_idx = (int)(walker_idx/(CHUNK_SIZE))
 
-            # read in all walker group vals and idxs
-            # instrs.extend(gen_read_in_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
-
-
             # DO WORK
-            work_schedule = gen_work_schedule(rounds, pipeline_offset, pipeline_offset_2)
+            work_schedule = gen_work_schedule(rounds)
             for round in range(len(work_schedule)):
                 instrs.extend(gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, consts["forest_values"], const_operands, tmps, consts))
-
-            # # start pipeline
-            # instrs.extend(gen_pipeline_ramp_up(group_size, consts, tmps))
-
-            # # main body of pipeline
-            # for round in range(1, 2*rounds):
-
-                 # instrs.extend(gen_pipeline_iter(round, forest_height, consts["forest_values"], group_size, const_operands, tmps, consts))
-
-            # # finish pipeline
-            # instrs.extend(gen_pipeline_ramp_down(rounds, forest_height, group_size, consts, tmps))
-
-            # write out all walker group vals and idxs
-            # instrs.extend(gen_write_out_walker_group_instrs(walker_idx_idx, num_phases, group_size, tmps, consts))
 
 
         packed_instrs = pack(instrs, const_operands)
