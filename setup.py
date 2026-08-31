@@ -66,6 +66,14 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     const_v5 = alloc_scratch("v5", VLEN)
     const_v6 = alloc_scratch("v6", VLEN)
     const_v7 = alloc_scratch("v7", VLEN)
+    const_v8 = alloc_scratch("v8", VLEN)
+    const_v9 = alloc_scratch("v9", VLEN)
+    const_v10 = alloc_scratch("v10", VLEN)
+    const_v11 = alloc_scratch("v11", VLEN)
+    const_v12 = alloc_scratch("v12", VLEN)
+    const_v13 = alloc_scratch("v13", VLEN)
+    const_v14 = alloc_scratch("v14", VLEN)
+    const_v15 = alloc_scratch("v15", VLEN)
     const_1_minus_fvo = alloc_scratch("1_minus_fvo", VLEN) # fvo = forest_value_offset
 
     tmp_scalar_const_one = scratch_const(setup, 1)
@@ -97,12 +105,23 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
 
 
     setup.append(("load", ("vload", tmp1s[0][0], forest_values)))
+    # setup.append(("alu", ("+", tmp1s[0][1], forest_values, tmp_scalar_const_8)))
+    setup.append(("alu", ("+", tmp1s[0][1], init_vars_scratch[0], tmp_scalar_const_8)))
+    setup.append(("load", ("vload", tmp1s[0][1], tmp1s[0][1])))
     setup.append(("valu", ("vbroadcast", const_v2, tmp1s[0][0]+1)))
     setup.append(("valu", ("vbroadcast", const_v3, tmp1s[0][0]+2)))
     setup.append(("valu", ("vbroadcast", const_v4, tmp1s[0][0]+3)))
     setup.append(("valu", ("vbroadcast", const_v5, tmp1s[0][0]+4)))
     setup.append(("valu", ("vbroadcast", const_v6, tmp1s[0][0]+5)))
     setup.append(("valu", ("vbroadcast", const_v7, tmp1s[0][0]+6)))
+    setup.append(("valu", ("vbroadcast", const_v8, tmp1s[0][0]+7)))
+    setup.append(("valu", ("vbroadcast", const_v9, tmp1s[0][1]+0)))
+    setup.append(("valu", ("vbroadcast", const_v10, tmp1s[0][1]+1)))
+    setup.append(("valu", ("vbroadcast", const_v11, tmp1s[0][1]+2)))
+    setup.append(("valu", ("vbroadcast", const_v12, tmp1s[0][1]+3)))
+    setup.append(("valu", ("vbroadcast", const_v13, tmp1s[0][1]+4)))
+    setup.append(("valu", ("vbroadcast", const_v14, tmp1s[0][1]+5)))
+    setup.append(("valu", ("vbroadcast", const_v15, tmp1s[0][1]+6)))
 
     tmp_vals = []
     tmp_node_vals = []
@@ -182,6 +201,14 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
         "v5": const_v5, 
         "v6": const_v6, 
         "v7": const_v7, 
+        "v8": const_v8, 
+        "v9": const_v9, 
+        "v10": const_v10, 
+        "v11": const_v11, 
+        "v12": const_v12, 
+        "v13": const_v13, 
+        "v14": const_v14, 
+        "v15": const_v15, 
         "1_minus_fvo": const_1_minus_fvo, 
     }
 

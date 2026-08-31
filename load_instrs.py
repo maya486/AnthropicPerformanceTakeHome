@@ -11,6 +11,8 @@ def gen_load_instrs(load_round, load_phase, global_round, group_size, consts, tm
         return gen_load_instrs_round_1(load_phase, group_size, consts, tmps)
     elif load_round == 2 or load_round == 13:
         return gen_load_instrs_round_2(load_phase, group_size, consts, tmps)
+    elif load_round == 3 or load_round == 14:
+        return gen_load_instrs_round_3(load_phase, group_size, consts, tmps)
     else:
         return gen_load_instrs_generic(load_phase, group_size, tmps)
         
@@ -77,6 +79,23 @@ def gen_load_instrs_round_2(phase, group_size, consts, tmps):
         instrs.append(("flow", ("vselect", tmps["3s"][0], tmps["b0s"][phase][i], consts["v6"], consts["v4"])))
         instrs.append(("flow", ("vselect", tmps["3s"][1], tmps["b0s"][phase][i], consts["v7"], consts["v5"])))
         instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["b1s"][phase][i], tmps["3s"][1], tmps["3s"][0])))
+
+    return instrs
+
+
+def gen_load_instrs_round_3(phase, group_size, consts, tmps):
+
+    instrs = []
+
+    # select which node val (preloaded in setup) through decision tree structure based on val parity of 1st and 2nd iter
+    for i in range(group_size//VLEN):
+        instrs.append(("flow", ("vselect", tmps["3s"][2], tmps["b0s"][phase][i], consts["v12"], consts["v8"])))
+        instrs.append(("flow", ("vselect", tmps["3s"][3], tmps["b0s"][phase][i], consts["v13"], consts["v9"])))
+        instrs.append(("flow", ("vselect", tmps["3s"][4], tmps["b0s"][phase][i], consts["v14"], consts["v10"])))
+        instrs.append(("flow", ("vselect", tmps["3s"][5], tmps["b0s"][phase][i], consts["v15"], consts["v11"])))
+        instrs.append(("flow", ("vselect", tmps["3s"][6], tmps["b1s"][phase][i], tmps["3s"][4], tmps["3s"][2])))
+        instrs.append(("flow", ("vselect", tmps["3s"][7], tmps["b1s"][phase][i], tmps["3s"][5], tmps["3s"][3])))
+        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["val_paritys"][phase][i], tmps["3s"][7], tmps["3s"][6])))
 
     return instrs
 
