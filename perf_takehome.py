@@ -108,7 +108,7 @@ class KernelBuilder:
 
         self.instrs.extend(packed_instrs)
 
-        # print(len(self.instrs))
+        print(self.scratch_ptr, "/", SCRATCH_SIZE)
 
 
 BASELINE = 147734

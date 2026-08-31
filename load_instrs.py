@@ -68,10 +68,15 @@ def gen_load_instrs_round_2(phase, group_size, consts, tmps):
     instrs = []
 
     # select which node val (preloaded in setup) through decision tree structure based on val parity of 1st and 2nd iter
+    # for i in range(group_size//VLEN):
+        # instrs.append(("flow", ("vselect", tmps["3s"][0], tmps["b0s"][phase][i], consts["v6"], consts["v4"])))
+        # instrs.append(("flow", ("vselect", tmps["3s"][1], tmps["b0s"][phase][i], consts["v7"], consts["v5"])))
+        # instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["val_paritys"][phase][i], tmps["3s"][1], tmps["3s"][0])))
+
     for i in range(group_size//VLEN):
         instrs.append(("flow", ("vselect", tmps["3s"][0], tmps["b0s"][phase][i], consts["v6"], consts["v4"])))
-        instrs.append(("flow", ("vselect", tmps["3s"][8], tmps["b0s"][phase][i], consts["v7"], consts["v5"])))
-        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["val_paritys"][phase][i], tmps["3s"][8], tmps["3s"][0])))
+        instrs.append(("flow", ("vselect", tmps["3s"][1], tmps["b0s"][phase][i], consts["v7"], consts["v5"])))
+        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["b1s"][phase][i], tmps["3s"][1], tmps["3s"][0])))
 
     return instrs
 

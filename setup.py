@@ -7,20 +7,23 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
 
     tmp1s = []
     b0s = []
+    b1s = []
     tmp2s = []
     # for p in range(num_phases):
     for p in range(NUM_GROUPS):
         tmp1s.append([])
         tmp2s.append([])
         b0s.append([])
+        b1s.append([])
         # for walker_group_idx in range(group_size//VLEN):
         for walker_group_idx in range(GROUP_VECS[p]):
             tmp1s[p].append(alloc_scratch(None, VLEN))
             tmp2s[p].append(alloc_scratch(None, VLEN))
             b0s[p].append(alloc_scratch(None, VLEN))
+            b1s[p].append(alloc_scratch(None, VLEN))
 
     tmp3s = []
-    for i in range(32):
+    for i in range(16):
         tmp3s.append(alloc_scratch(None, VLEN))
 
 
@@ -195,6 +198,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
         "2s": tmp2s,
         "3s": tmp3s,
         "b0s": b0s,
+        "b1s": b1s,
     }
 
 
