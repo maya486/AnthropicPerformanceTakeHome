@@ -52,6 +52,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     const_one = alloc_scratch(1, VLEN)
     const_two = alloc_scratch(2, VLEN)
     const_three = alloc_scratch(3, VLEN)
+    const_four = alloc_scratch(4, VLEN)
     # const_five = alloc_scratch(5, VLEN)
     const_seven = alloc_scratch(5, VLEN)
     const_nine = alloc_scratch(9, VLEN)
@@ -78,10 +79,12 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     const_v14 = alloc_scratch("v14", VLEN)
     const_v15 = alloc_scratch("v15", VLEN)
     const_1_minus_fvo = alloc_scratch("1_minus_fvo", VLEN) # fvo = forest_value_offset
+    const_root_addr_plus_7 = alloc_scratch("root_addr_plus_7", VLEN) # fvo = forest_value_offset
 
     tmp_scalar_const_one = scratch_const(setup, 1)
     tmp_scalar_const_two = scratch_const(setup, 2)
     tmp_scalar_const_three = scratch_const(setup, 3)
+    tmp_scalar_const_four = scratch_const(setup, 4)
     # tmp_scalar_const_five = scratch_const(setup, 5)
     tmp_scalar_const_seven = scratch_const(setup, 7)
     tmp_scalar_const_nine = scratch_const(setup, 9)
@@ -99,6 +102,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     setup.append(("valu", ("vbroadcast", const_one, tmp_scalar_const_one)))
     setup.append(("valu", ("vbroadcast", const_two, tmp_scalar_const_two)))
     setup.append(("valu", ("vbroadcast", const_three, tmp_scalar_const_three)))
+    setup.append(("valu", ("vbroadcast", const_four, tmp_scalar_const_four)))
     # setup.append(("valu", ("vbroadcast", const_five, tmp_scalar_const_five)))
     setup.append(("valu", ("vbroadcast", const_seven, tmp_scalar_const_seven)))
     setup.append(("valu", ("vbroadcast", const_nine, tmp_scalar_const_nine)))
@@ -184,12 +188,14 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
 
 
     setup.append(("valu", ("-", const_1_minus_fvo, const_one, forest_values)))
+    setup.append(("valu", ("+", const_root_addr_plus_7, const_seven, forest_values)))
 
 
     consts = {
         "1": const_one,
         "2": const_two,
-        "7": const_seven,
+        "4": const_four,
+        # "7": const_seven,
         "8": const_8,
         "9": const_nine,
         "11": const_eleven,
@@ -222,6 +228,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
         "v14": const_v14, 
         "v15": const_v15, 
         "1_minus_fvo": const_1_minus_fvo, 
+        "root_addr_plus_7": const_root_addr_plus_7,
     }
 
     const_operands = list(consts.values())
