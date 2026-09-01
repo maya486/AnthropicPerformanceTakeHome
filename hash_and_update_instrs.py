@@ -58,12 +58,19 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
         # instrs.append(("alu", ("+", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane)))
 
     # stage 4
-    for i in range(num_valu_groups-1):
-        instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xD3A2646C"])))
-    for lane in range(VLEN):
-        instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xD3A2646C"])))
+    # if round in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+    if True:
+        for i in range(num_valu_groups-1):
+            instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xD3A2646C"])))
+        for lane in range(VLEN):
+            instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xD3A2646C"])))
+    else:
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xD3A2646C"])))
 
-    if round in [7, 8, 6, 5]:
+
+    # if round in [7, 8, 6, 5]:
+    if False:
         for i in range(num_valu_groups-1):
             instrs.append(("valu", ("<<", tmps["2s"][phase][i], tmps["vals"][phase][i], hash_consts["9"])))
         for lane in range(VLEN):
