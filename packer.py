@@ -6,10 +6,20 @@ def update_rw_operands_with_slot_vector(s, curr_write_operands, curr_read_operan
     # explicity listed in the slot operands. Only the register
     # corresponding to lane 0 is listed, lanes 1-7 must be 
     # accounted for too, though, to not break data dependencies
-    for j in range(VLEN):
-        curr_write_operands |= set([s[1]+j])
-        for reg in s[2:]:
-            curr_read_operands |= set([reg+j])
+    
+    if s[0] == "vstore":
+        curr_read_operands |= set([s[1]])
+        for j in range(VLEN):
+            curr_read_operands |= set([s[2]+j])
+    elif s[0] == "vload":
+        curr_read_operands |= set([s[2]])
+        for j in range(VLEN):
+            curr_write_operands |= set([s[1]+j])
+    else:
+        for j in range(VLEN):
+            curr_write_operands |= set([s[1]+j])
+            for reg in s[2:]:
+                curr_read_operands |= set([reg+j])
 
 
 def update_rw_operands_with_slot(s, curr_write_operands, curr_read_operands):
