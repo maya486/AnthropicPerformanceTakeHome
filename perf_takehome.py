@@ -37,7 +37,6 @@ from problem import (
 )
 
 from pipeline import gen_work_schedule, gen_iter
-from walker_group import gen_read_in_walker_group_instrs, gen_write_out_walker_group_instrs
 from packer import pack
 from setup import setup_scratch
 from group_partition import GROUPS, GROUP_VECS, CHUNK_SIZE
