@@ -80,6 +80,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     const_v15 = alloc_scratch("v15", VLEN)
     const_1_minus_fvo = alloc_scratch("1_minus_fvo", VLEN) # fvo = forest_value_offset
     const_root_addr_plus_7 = alloc_scratch("root_addr_plus_7", VLEN) # fvo = forest_value_offset
+    const_inp_indices_minus_inp_values = alloc_scratch("inp_indices_minus_inp_values", VLEN) # fvo = forest_value_offset
 
     tmp_scalar_const_one = scratch_const(setup, 1)
     tmp_scalar_const_two = scratch_const(setup, 2)
@@ -178,17 +179,19 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     for walker_idx in range(0, num_walkers, CHUNK_SIZE):
         walker_idx_idx = (int)(walker_idx/(CHUNK_SIZE))
         walker_idxs.append([])
-        # for phase in range(num_phases):
         for p in range(NUM_GROUPS):
             walker_idxs[walker_idx_idx].append([])
-            # for i in range(group_size//VLEN):
             for i in range(GROUP_VECS[p]):
-                # walker_idxs[walker_idx_idx][p].append(scratch_const(setup, group_size*phase+walker_idx+VLEN*i))
+
                 walker_idxs[walker_idx_idx][p].append(scratch_const(setup, GROUPS_PREFIX_SUM[p]+walker_idx+VLEN*i))
+
+                # values
+                setup.append(("alu", ("+", walker_idxs[walker_idx_idx][p][i], init_vars_scratch[2], walker_idxs[walker_idx_idx][p][i])))
 
 
     setup.append(("valu", ("-", const_1_minus_fvo, const_one, forest_values)))
     setup.append(("valu", ("+", const_root_addr_plus_7, const_seven, forest_values)))
+    setup.append(("alu", ("-", const_inp_indices_minus_inp_values, init_vars_scratch[1], init_vars_scratch[2])))
 
 
     consts = {
@@ -229,6 +232,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
         "v15": const_v15, 
         "1_minus_fvo": const_1_minus_fvo, 
         "root_addr_plus_7": const_root_addr_plus_7,
+        "inp_indices_minus_inp_values": const_inp_indices_minus_inp_values,
         "walker_idxs": walker_idxs,
     }
 
