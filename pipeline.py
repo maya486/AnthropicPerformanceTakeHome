@@ -8,7 +8,7 @@ from enum import Enum
 
 OFFSET_1 = 5
 OFFSET_2 = 5
-OFFSET_3 = 5
+OFFSET_3 = 4
 
 
 class Work(Enum):
