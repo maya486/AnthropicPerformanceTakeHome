@@ -70,7 +70,7 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
 
 
     # if round in [7, 8, 6, 5]:
-    if round in [5, 6]:
+    if (round in [6]) or (round == 5 and phase in [0, 1, 2, 3, 4, 5, 6]):
         for i in range(num_valu_groups-1):
             instrs.append(("valu", ("<<", tmps["2s"][phase][i], tmps["vals"][phase][i], hash_consts["9"])))
         for lane in range(VLEN):
