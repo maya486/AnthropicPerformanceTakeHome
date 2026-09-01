@@ -52,9 +52,12 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     const_one = alloc_scratch(1, VLEN)
     const_two = alloc_scratch(2, VLEN)
     const_three = alloc_scratch(3, VLEN)
-    const_five = alloc_scratch(5, VLEN)
+    # const_five = alloc_scratch(5, VLEN)
+    const_seven = alloc_scratch(5, VLEN)
     const_nine = alloc_scratch(9, VLEN)
-    const_twelve = alloc_scratch(12, VLEN)
+    const_eleven = alloc_scratch(11, VLEN)
+    # const_twelve = alloc_scratch(12, VLEN)
+    const_thirteen = alloc_scratch(13, VLEN)
     const_sixteen = alloc_scratch(16, VLEN)
     const_nineteen = alloc_scratch(19, VLEN)
     const_4096 = alloc_scratch(4096, VLEN)
@@ -79,9 +82,12 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     tmp_scalar_const_one = scratch_const(setup, 1)
     tmp_scalar_const_two = scratch_const(setup, 2)
     tmp_scalar_const_three = scratch_const(setup, 3)
-    tmp_scalar_const_five = scratch_const(setup, 5)
+    # tmp_scalar_const_five = scratch_const(setup, 5)
+    tmp_scalar_const_seven = scratch_const(setup, 7)
     tmp_scalar_const_nine = scratch_const(setup, 9)
-    tmp_scalar_const_twelve = scratch_const(setup, 12)
+    tmp_scalar_const_eleven = scratch_const(setup, 11)
+    # tmp_scalar_const_twelve = scratch_const(setup, 12)
+    tmp_scalar_const_thirteen = scratch_const(setup, 13)
     tmp_scalar_const_sixteen = scratch_const(setup, 16)
     tmp_scalar_const_nineteen = scratch_const(setup, 19)
     tmp_scalar_const_4096 = scratch_const(setup, 4096)
@@ -93,9 +99,12 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     setup.append(("valu", ("vbroadcast", const_one, tmp_scalar_const_one)))
     setup.append(("valu", ("vbroadcast", const_two, tmp_scalar_const_two)))
     setup.append(("valu", ("vbroadcast", const_three, tmp_scalar_const_three)))
-    setup.append(("valu", ("vbroadcast", const_five, tmp_scalar_const_five)))
+    # setup.append(("valu", ("vbroadcast", const_five, tmp_scalar_const_five)))
+    setup.append(("valu", ("vbroadcast", const_seven, tmp_scalar_const_seven)))
     setup.append(("valu", ("vbroadcast", const_nine, tmp_scalar_const_nine)))
-    setup.append(("valu", ("vbroadcast", const_twelve, tmp_scalar_const_twelve)))
+    setup.append(("valu", ("vbroadcast", const_eleven, tmp_scalar_const_eleven)))
+    # setup.append(("valu", ("vbroadcast", const_twelve, tmp_scalar_const_twelve)))
+    setup.append(("valu", ("vbroadcast", const_thirteen, tmp_scalar_const_thirteen)))
     setup.append(("valu", ("vbroadcast", const_sixteen, tmp_scalar_const_sixteen)))
     setup.append(("valu", ("vbroadcast", const_nineteen, tmp_scalar_const_nineteen)))
     setup.append(("valu", ("vbroadcast", const_4096, tmp_scalar_const_4096)))
@@ -180,8 +189,11 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     consts = {
         "1": const_one,
         "2": const_two,
+        "7": const_seven,
         "8": const_8,
         "9": const_nine,
+        "11": const_eleven,
+        "13": const_thirteen,
         "16": const_sixteen,
         "19": const_nineteen,
         "32": const_32,
