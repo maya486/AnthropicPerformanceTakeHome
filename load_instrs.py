@@ -8,7 +8,7 @@ def gen_load_instrs(load_round, load_phase, global_round, group_size, consts, tm
     elif load_round == 0 or load_round == 11:
         return gen_load_instrs_round_0(load_phase, group_size, consts, tmps)
     elif load_round == 1 or load_round == 12:
-        return gen_load_instrs_round_1(load_phase, group_size, consts, tmps)
+        return gen_load_instrs_round_1(load_phase, load_round, group_size, consts, tmps)
     elif load_round == 2 or load_round == 13:
         return gen_load_instrs_round_2(load_phase, group_size, consts, tmps)
     elif load_round == 3 or load_round == 14:
@@ -54,13 +54,19 @@ def gen_load_instrs_round_0(phase, group_size, consts, tmps):
     return instrs
 
 
-def gen_load_instrs_round_1(phase, group_size, consts, tmps):
+def gen_load_instrs_round_1(phase, load_round, group_size, consts, tmps):
 
     instrs = []
 
+    if load_round == 1 and phase in [0, 1]:
     # select which node val (preloaded in setup) based on val parity
-    for i in range(group_size//VLEN):
-        instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["b0s"][phase][i], consts["v3"], consts["v2"])))
+        for i in range(group_size//VLEN):
+            # instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["b0s"][phase][i], consts["v3"], consts["v2"])))
+            instrs.append(("valu", ("multiply_add", tmps["node_vals"][phase][i], tmps["b0s"][phase][i], consts["v3_minus_v2"], consts["v2"])))
+    else:
+        for i in range(group_size//VLEN):
+            instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["b0s"][phase][i], consts["v3"], consts["v2"])))
+
 
     return instrs
 
