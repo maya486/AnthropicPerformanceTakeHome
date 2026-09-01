@@ -88,7 +88,11 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
 
     # stage 5
     for i in range(num_valu_groups):
-        instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xFD7046C5"])))
+        if phase == 0 and round in [6]:
+            for lane in range(VLEN):
+                instrs.append(("flow", ("add_imm", tmps["1s"][phase][i]+lane, tmps["vals"][phase][i]+lane, 0xFD7046C5)))
+        else:
+            instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xFD7046C5"])))
     # for lane in range(VLEN):
         # instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xFD7046C5"])))
 
