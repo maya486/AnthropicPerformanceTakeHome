@@ -107,7 +107,19 @@ class KernelBuilder:
 
         self.instrs.extend(packed_instrs)
 
+        print()
         print(self.scratch_ptr, "/", SCRATCH_SIZE)
+        print()
+
+        for engine in ["alu", "valu", "flow", "load"]:
+            num_slots = 0
+            for i in self.instrs:
+                if engine in i: num_slots += len(i[engine])
+            print(engine)
+            print("\tnum_slots: ", num_slots)
+            print("\tcycles: ", num_slots/SLOT_LIMITS[engine])
+        print()
+
 
 
 BASELINE = 147734
