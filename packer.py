@@ -55,7 +55,7 @@ def insert_slot(slot, engine, idx, instrs):
         instrs[idx][engine].append(slot)
 
 
-def pack(slots: list[tuple[Engine, tuple]], const_operands):
+def pack(slots: list[tuple[Engine, tuple]]):
     # packs slots by inserting each slot into the earliest instruction that doesn't violate data dependencies
     # slots of different engines may be reordered, but slots of the same
     # engine aren't
@@ -79,13 +79,12 @@ def pack(slots: list[tuple[Engine, tuple]], const_operands):
             process_instr(engine, [slot], new_write_operands, new_read_operands)
 
             operand_intersection = (new_write_operands & curr_write_operands) | (new_write_operands & curr_read_operands) | (new_read_operands & curr_write_operands)
-            has_invalid_dependence = operand_intersection - set(const_operands)
 
             # determine whether instruction has room for slot
             slot_counts = len(instrs[i][engine])
             has_slot_space = slot_counts < SLOT_LIMITS[engine]
 
-            if has_invalid_dependence:
+            if operand_intersection:
                 break
 
             if not has_slot_space:

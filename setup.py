@@ -229,11 +229,9 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
         "v15": const_v15, 
         "1_minus_fvo": const_1_minus_fvo, 
         "root_addr_plus_7": const_root_addr_plus_7,
+        "walker_idxs": walker_idxs,
     }
 
-    const_operands = list(consts.values())
-
-    consts["walker_idxs"] = walker_idxs
 
     tmps = {
         "vals": tmp_vals,
@@ -248,6 +246,6 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     }
 
 
-    return setup, const_operands, consts, tmps
+    return setup, consts, tmps
 
 

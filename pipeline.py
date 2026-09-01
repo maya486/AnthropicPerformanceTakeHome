@@ -56,7 +56,7 @@ def gen_work_schedule(rounds):
     return work_schedule
 
 
-def gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, forest_values, const_operands, tmps, consts):
+def gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, forest_values, tmps, consts):
 
     instrs = []
 

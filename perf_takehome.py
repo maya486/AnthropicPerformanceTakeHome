@@ -85,7 +85,7 @@ class KernelBuilder:
         instrs = []
 
 
-        setup, const_operands, consts, tmps = setup_scratch(self.alloc_scratch, self.scratch_const, num_walkers)
+        setup, consts, tmps = setup_scratch(self.alloc_scratch, self.scratch_const, num_walkers)
         instrs.extend(setup)
 
 
@@ -97,10 +97,10 @@ class KernelBuilder:
             # DO WORK
             work_schedule = gen_work_schedule(rounds)
             for round in range(len(work_schedule)):
-                instrs.extend(gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, consts["forest_values"], const_operands, tmps, consts))
+                instrs.extend(gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, consts["forest_values"], tmps, consts))
 
 
-        packed_instrs = pack(instrs, const_operands)
+        packed_instrs = pack(instrs)
 
         # required to match with yields in reference_kernel2
         packed_instrs = [{"flow": [("pause",)]}] + packed_instrs + [{"flow": [("pause",)]}]
