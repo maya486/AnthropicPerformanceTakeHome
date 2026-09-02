@@ -29,48 +29,55 @@ def gen_work_schedule(rounds):
     g_offset = OFFSET_1+OFFSET_2+OFFSET_3
     h_offset = g_offset+1
 
+    next_group_offset = 5 + 2*rounds+2
+
+    group_offsets = [0, next_group_offset]
+
     work_schedule = []
 
-    for i in range(h_offset+2*rounds+2):
-        work_schedule.append([(Work.NONE, -1), 
-                              (Work.NONE, -1), 
-                              (Work.NONE, -1), 
-                              (Work.NONE, -1), 
-                              (Work.NONE, -1), 
-                              (Work.NONE, -1), 
-                              (Work.NONE, -1), 
-                              (Work.NONE, -1)])
+    for i in range(2*(h_offset+2*rounds+2)):
+        work_schedule.append([(Work.NONE, -1, -1), 
+                              (Work.NONE, -1, -1), 
+                              (Work.NONE, -1, -1), 
+                              (Work.NONE, -1, -1), 
+                              (Work.NONE, -1, -1), 
+                              (Work.NONE, -1, -1), 
+                              (Work.NONE, -1, -1), 
+                              (Work.NONE, -1, -1)])
 
     offsets = [a_offset, b_offset, c_offset, d_offset,
                e_offset, f_offset, g_offset, h_offset]
 
-    for i in range(len(offsets)):
+    for j in range(len(group_offsets)):
+        for i in range(len(offsets)):
 
-        work_schedule[offsets[i]+0][i] = (Work.READ_IN, -1)
-        work_schedule[offsets[i]+2*rounds+1][i] = (Work.WRITE_OUT, -1)
+            offset = group_offsets[j]+offsets[i]
 
-        for r in range(rounds):
-            work_schedule[offsets[i]+2*r+1][i] = (Work.LOAD, r)
-            work_schedule[offsets[i]+2*r+2][i] = (Work.HASH, r)
+            work_schedule[offset+0][i] = (Work.READ_IN, -1, j)
+            work_schedule[offset+2*rounds+1][i] = (Work.WRITE_OUT, -1, j)
+
+            for r in range(rounds):
+                work_schedule[offset+2*r+1][i] = (Work.LOAD, r, -1)
+                work_schedule[offset+2*r+2][i] = (Work.HASH, r, -1)
 
     return work_schedule
 
 
-def gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, forest_values, tmps, consts):
+def gen_iter(round, work_schedule, rounds, forest_height, forest_values, tmps, consts):
 
     instrs = []
 
     for i in range(NUM_GROUPS):
 
-        work, work_round = work_schedule[round][i]
+        work, work_round, group = work_schedule[round][i]
         if work == Work.LOAD:
             instrs += gen_load_instrs(work_round, i, round, GROUPS[i], consts, tmps)
         elif work == Work.HASH:
             instrs += gen_hash_and_update_instrs_generic(work_round, i, forest_height, GROUPS[i], tmps, consts)
         elif work == Work.READ_IN:
-            instrs += gen_read_in_instrs(walker_idx_idx, i, GROUPS[i], tmps, consts)
+            instrs += gen_read_in_instrs(group, i, GROUPS[i], tmps, consts)
         elif work == Work.WRITE_OUT:
-            instrs += gen_write_out_instrs(walker_idx_idx, i, GROUPS[i], tmps, consts)
+            instrs += gen_write_out_instrs(group, i, GROUPS[i], tmps, consts)
 
     return instrs
 

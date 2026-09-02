@@ -90,14 +90,14 @@ class KernelBuilder:
 
 
         # fully process groups of walkers at a time
-        for walker_idx in range(0, num_walkers, CHUNK_SIZE):
+        # for walker_idx in range(0, num_walkers, CHUNK_SIZE):
 
-            walker_idx_idx = (int)(walker_idx/(CHUNK_SIZE))
+            # walker_idx_idx = (int)(walker_idx/(CHUNK_SIZE))
 
-            # DO WORK
-            work_schedule = gen_work_schedule(rounds)
-            for round in range(len(work_schedule)):
-                instrs.extend(gen_iter(round, work_schedule, walker_idx_idx, rounds, forest_height, consts["forest_values"], tmps, consts))
+        # DO WORK
+        work_schedule = gen_work_schedule(rounds)
+        for round in range(len(work_schedule)):
+            instrs.extend(gen_iter(round, work_schedule, rounds, forest_height, consts["forest_values"], tmps, consts))
 
 
         packed_instrs = pack(instrs)
