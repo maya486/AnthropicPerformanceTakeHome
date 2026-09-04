@@ -3,9 +3,11 @@ from problem import VLEN
 def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, tmps, hash_consts):
     instrs = []
 
-    # one group uses the alu instead of the valu
-    # num_valu_groups = (group_size//VLEN) - 1
     num_valu_groups = (group_size//VLEN)
+
+    # vary to easily push one group from valu to alu though
+    # sometimes split is more finegrained than that to 
+    # achieve perfect balance between alu and valu
     alu_group = num_valu_groups - 1
 
     # val = val ^ node_val
@@ -25,9 +27,6 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
 
     for i in range(num_valu_groups):
         instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["4096"], tmps["1s"][phase][i])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("*", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["4096"])))
-        # instrs.append(("alu", ("+", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane)))
 
     # stage 2
     for i in range(num_valu_groups-1):
@@ -53,23 +52,15 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
 
     for i in range(num_valu_groups):
         instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["32"], tmps["1s"][phase][i])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("*", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["32"])))
-        # instrs.append(("alu", ("+", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane)))
 
     # stage 4
-    # if round in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-    if True:
-        for i in range(num_valu_groups-1):
-            instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xD3A2646C"])))
-        for lane in range(VLEN):
-            instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xD3A2646C"])))
-    else:
-        for i in range(num_valu_groups):
-            instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xD3A2646C"])))
+    for i in range(num_valu_groups-1):
+        instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xD3A2646C"])))
+    for lane in range(VLEN):
+        instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xD3A2646C"])))
 
 
-    # if round in [7, 8, 6, 5]:
+    # finegrained tuning of alu valu balance
     if (round in [6]) or (round == 5 and phase in [0, 1, 2, 3, 4, 5, 6]):
         for i in range(num_valu_groups-1):
             instrs.append(("valu", ("<<", tmps["2s"][phase][i], tmps["vals"][phase][i], hash_consts["9"])))
@@ -78,13 +69,9 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
     else:
         for i in range(num_valu_groups):
             instrs.append(("valu", ("<<", tmps["2s"][phase][i], tmps["vals"][phase][i], hash_consts["9"])))
-        # for lane in range(VLEN):
-            # instrs.append(("alu", ("<<", tmps["2s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["9"])))
 
     for i in range(num_valu_groups):
         instrs.append(("valu", ("^", tmps["vals"][phase][i], tmps["1s"][phase][i], tmps["2s"][phase][i])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("^", tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane, tmps["2s"][phase][alu_group]+lane)))
 
     # stage 5
     for i in range(num_valu_groups):
@@ -93,104 +80,77 @@ def gen_hash_and_update_instrs_generic(round, phase, forest_height, group_size, 
                 instrs.append(("flow", ("add_imm", tmps["1s"][phase][i]+lane, tmps["vals"][phase][i]+lane, 0xFD7046C5)))
         else:
             instrs.append(("valu", ("+", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xFD7046C5"])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("+", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xFD7046C5"])))
 
     for i in range(num_valu_groups):
         instrs.append(("valu", ("multiply_add", tmps["vals"][phase][i], tmps["vals"][phase][i], hash_consts["8"], tmps["1s"][phase][i])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("*", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["8"])))
-        # instrs.append(("alu", ("+", tmps["vals"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane)))
 
-        # stage 6
+    # stage 6
     for i in range(num_valu_groups):
         instrs.append(("valu", ("^", tmps["1s"][phase][i], tmps["vals"][phase][i], hash_consts["0xB55A4F09"])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("^", tmps["1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["0xB55A4F09"])))
 
     for i in range(num_valu_groups):
         instrs.append(("valu", (">>", tmps["2s"][phase][i], tmps["vals"][phase][i], hash_consts["16"])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", (">>", tmps["2s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["16"])))
 
     for i in range(num_valu_groups):
         instrs.append(("valu", ("^", tmps["vals"][phase][i], tmps["1s"][phase][i], tmps["2s"][phase][i])))
-    # for lane in range(VLEN):
-        # instrs.append(("alu", ("^", tmps["vals"][phase][alu_group]+lane, tmps["1s"][phase][alu_group]+lane, tmps["2s"][phase][alu_group]+lane)))
 
-    # update index to next tree level or loop back up
+    # update index to next tree level or loop back up to root
+
+    # loop back up to root
     if round == forest_height:
-        # idx = 0
         for i in range(num_valu_groups):
-            # instrs.append(("flow", ("vselect", tmps["addrs"][phase][i], hash_consts["1"], hash_consts["forest_values"], hash_consts["forest_values"])))
             instrs.append(("valu", ("*", tmps["addrs"][phase][i], hash_consts["forest_values"], hash_consts["1"])));
-        # for lane in range(VLEN):
-            # instrs.append(("alu", ("*", tmps["addrs"][phase][alu_group]+lane, hash_consts["forest_values"], hash_consts["1"])));
+
+    # update idx to next level of tree going left or right 
+    # based on parity based on idx = 2*idx + 1 + val&1
+    # for top tree levels where addr isn't used due to load
+    # opts, don't have to update, only track parity
+    # sometimes track parity in b0s or b1s instead of 
+    # val_paritys for load opts
+
+    elif round == 0 or round == 11:
+
+        # b0 (parity) = val & 1
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("&", tmps["b0s"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
+
+    elif round == 1 or round == 12:
+
+        # b1 (parity) = val & 1
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("&", tmps["b1s"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
+
+    elif round == 2 or round == 13:
+        
+        # val_parity = vals & 1
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("&", tmps["val_paritys"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
+
+        # addr = root_addr + 7 + val_parity
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("+", tmps["addrs"][phase][i], hash_consts["root_addr_plus_7"], tmps["val_paritys"][phase][i])))
+
+        # addr += b1*2
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("multiply_add", tmps["addrs"][phase][i], tmps["b1s"][phase][i], hash_consts["2"], tmps["addrs"][phase][i])))
+
+        # addr += b0*4
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("multiply_add", tmps["addrs"][phase][i], tmps["b0s"][phase][i], hash_consts["4"], tmps["addrs"][phase][i])))
+
     else:
 
-        # update idx to next level of tree going left or right based on parity
-        # idx = 2*idx + 1 + val&1
-
-        # if at root need to record the parity into b0 instead of val_paritys for later level 2 optimization (see gen_load_instrs_round_2)
-        if round == 0 or round == 11:
-
-            # b0 (parity) = val & 1
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("&", tmps["b0s"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
-            # for lane in range(VLEN):
-                # instrs.append(("alu", ("&", tmps["b0s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["1"])));
-
-
-        elif round == 1 or round == 12:
-
-            # b1 (parity) = val & 1
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("&", tmps["b1s"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
-            # for lane in range(VLEN):
-                # instrs.append(("alu", ("&", tmps["b1s"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["1"])));
-
-        elif round == 2 or round == 13:
+        # val_parity = vals & 1
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("&", tmps["val_paritys"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
             
-            # val_parity = vals & 1
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("&", tmps["val_paritys"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
-            # for lane in range(VLEN):
-                # instrs.append(("alu", ("&", tmps["val_paritys"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["1"])));
+        # addr = addr*2 + 1 - forest_value_offset
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("multiply_add", tmps["addrs"][phase][i], tmps["addrs"][phase][i], hash_consts["2"], hash_consts["1_minus_fvo"])))
 
-
-            # addr = root_addr + 7 + val_parity
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("+", tmps["addrs"][phase][i], hash_consts["root_addr_plus_7"], tmps["val_paritys"][phase][i])))
-
-            # addr += b1*2
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("multiply_add", tmps["addrs"][phase][i], tmps["b1s"][phase][i], hash_consts["2"], tmps["addrs"][phase][i])))
-
-            # addr += b0*4
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("multiply_add", tmps["addrs"][phase][i], tmps["b0s"][phase][i], hash_consts["4"], tmps["addrs"][phase][i])))
-
-
-        else:
-
-            # val_parity = vals & 1
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("&", tmps["val_paritys"][phase][i], tmps["vals"][phase][i], hash_consts["1"])));
-            # for lane in range(VLEN):
-                # instrs.append(("alu", ("&", tmps["val_paritys"][phase][alu_group]+lane, tmps["vals"][phase][alu_group]+lane, hash_consts["1"])));
-                
-            # addr = addr*2 + 1 - forest_value_offset
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("multiply_add", tmps["addrs"][phase][i], tmps["addrs"][phase][i], hash_consts["2"], hash_consts["1_minus_fvo"])))
-            # for lane in range(VLEN):
-                # instrs.append(("alu", ("*", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, hash_consts["2"])))
-                # instrs.append(("alu", ("+", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, hash_consts["1_minus_fvo"])))
-
-            # addr += val_parity
-            for i in range(num_valu_groups):
-                instrs.append(("valu", ("+", tmps["addrs"][phase][i], tmps["addrs"][phase][i], tmps["val_paritys"][phase][i])))
-            # for lane in range(VLEN):
-                # instrs.append(("alu", ("+", tmps["addrs"][phase][alu_group]+lane, tmps["addrs"][phase][alu_group]+lane, tmps["val_paritys"][phase][alu_group]+lane)))
+        # addr += val_parity
+        for i in range(num_valu_groups):
+            instrs.append(("valu", ("+", tmps["addrs"][phase][i], tmps["addrs"][phase][i], tmps["val_paritys"][phase][i])))
 
     return instrs 
 

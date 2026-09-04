@@ -59,9 +59,8 @@ def gen_load_instrs_round_1(phase, load_round, group_size, consts, tmps):
     instrs = []
 
     if load_round == 1 and phase in [0, 1]:
-    # select which node val (preloaded in setup) based on val parity
+        # select which node val (preloaded in setup) based on val parity
         for i in range(group_size//VLEN):
-            # instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["b0s"][phase][i], consts["v3"], consts["v2"])))
             instrs.append(("valu", ("multiply_add", tmps["node_vals"][phase][i], tmps["b0s"][phase][i], consts["v3_minus_v2"], consts["v2"])))
     else:
         for i in range(group_size//VLEN):
@@ -75,12 +74,6 @@ def gen_load_instrs_round_2(phase, group_size, consts, tmps):
 
     instrs = []
 
-    # select which node val (preloaded in setup) through decision tree structure based on val parity of 1st and 2nd iter
-    # for i in range(group_size//VLEN):
-        # instrs.append(("flow", ("vselect", tmps["3s"][0], tmps["b0s"][phase][i], consts["v6"], consts["v4"])))
-        # instrs.append(("flow", ("vselect", tmps["3s"][1], tmps["b0s"][phase][i], consts["v7"], consts["v5"])))
-        # instrs.append(("flow", ("vselect", tmps["node_vals"][phase][i], tmps["val_paritys"][phase][i], tmps["3s"][1], tmps["3s"][0])))
-
     for i in range(group_size//VLEN):
         instrs.append(("flow", ("vselect", tmps["3s"][0], tmps["b0s"][phase][i], consts["v6"], consts["v4"])))
         instrs.append(("flow", ("vselect", tmps["3s"][1], tmps["b0s"][phase][i], consts["v7"], consts["v5"])))
@@ -93,7 +86,6 @@ def gen_load_instrs_round_3(phase, group_size, consts, tmps):
 
     instrs = []
 
-    # select which node val (preloaded in setup) through decision tree structure based on val parity of 1st and 2nd iter
     for i in range(group_size//VLEN):
         instrs.append(("flow", ("vselect", tmps["3s"][2], tmps["b0s"][phase][i], consts["v12"], consts["v8"])))
         instrs.append(("flow", ("vselect", tmps["3s"][3], tmps["b0s"][phase][i], consts["v13"], consts["v9"])))

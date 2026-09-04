@@ -1,37 +1,6 @@
 from problem import SLOT_LIMITS, Engine, VLEN
 
 
-# def update_rw_operands_with_slot_vector(s, curr_write_operands, curr_read_operands):
-    # # vector operations have registers updated that aren't
-    # # explicity listed in the slot operands. Only the register
-    # # corresponding to lane 0 is listed, lanes 1-7 must be 
-    # # accounted for too, though, to not break data dependencies
-    
-    # if s[0] == "vstore":
-        # curr_read_operands |= set([s[1]])
-        # for j in range(VLEN):
-            # curr_read_operands |= set([s[2]+j])
-    # elif s[0] == "vload":
-        # curr_read_operands |= set([s[2]])
-        # for j in range(VLEN):
-            # curr_write_operands |= set([s[1]+j])
-    # elif s[0] == "vbroadcast":
-        # curr_read_operands |= set([s[2]])
-        # for j in range(VLEN):
-            # curr_write_operands |= set([s[1]+j])
-    # else:
-        # for j in range(VLEN):
-            # curr_write_operands |= set([s[1]+j])
-            # for reg in s[2:]:
-                # curr_read_operands |= set([reg+j])
-
-
-# def update_rw_operands_with_slot(s, curr_write_operands, curr_read_operands):
-    # if s[0] == "const":
-    # curr_write_operands |= set([s[1]])
-    # curr_read_operands |= set(s[2:])
-
-
 def process_instr(e_name, e_slots, curr_write_operands, curr_read_operands):
     for s in e_slots:
         if e_name == "alu":
@@ -80,23 +49,6 @@ def process_instr(e_name, e_slots, curr_write_operands, curr_read_operands):
                 curr_read_operands |= set([s[2]])
 
 
-
-
-
-
-
-
-    # if e_name == "valu":
-        # for s in e_slots:
-            # update_rw_operands_with_slot_vector(s, curr_write_operands, curr_read_operands)
-    # else:
-        # for s in e_slots:
-            # if s[0] in ["vload", "vstore", "vselect"]:
-                # update_rw_operands_with_slot_vector(s, curr_write_operands, curr_read_operands)
-            # else:
-                # update_rw_operands_with_slot(s, curr_write_operands, curr_read_operands)
-
-
 def insert_slot(slot, engine, idx, instrs):
 
     if len(instrs) == 0:
@@ -125,8 +77,6 @@ def insert_slot(slot, engine, idx, instrs):
 
 def pack(slots: list[tuple[Engine, tuple]]):
     # packs slots by inserting each slot into the earliest instruction that doesn't violate data dependencies
-    # slots of different engines may be reordered, but slots of the same
-    # engine aren't
 
     instrs = []
 
@@ -152,9 +102,12 @@ def pack(slots: list[tuple[Engine, tuple]]):
             slot_counts = len(instrs[i][engine])
             has_slot_space = slot_counts < SLOT_LIMITS[engine]
 
+            # data dependency issue stops backward iteration
             if operand_intersection:
                 break
 
+            # lack of slot space skips this slot but allows
+            # further backward iteration 
             if not has_slot_space:
                 continue
 

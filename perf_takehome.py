@@ -89,13 +89,8 @@ class KernelBuilder:
         instrs.extend(setup)
 
 
-        # fully process groups of walkers at a time
-        # for walker_idx in range(0, num_walkers, CHUNK_SIZE):
-
-            # walker_idx_idx = (int)(walker_idx/(CHUNK_SIZE))
-
-        # DO WORK
         work_schedule = gen_work_schedule(rounds)
+
         for round in range(len(work_schedule)):
             instrs.extend(gen_iter(round, work_schedule, rounds, forest_height, consts["forest_values"], tmps, consts))
 
@@ -107,6 +102,7 @@ class KernelBuilder:
 
         self.instrs.extend(packed_instrs)
 
+        # print overall engine utilization
         print()
         print(self.scratch_ptr, "/", SCRATCH_SIZE)
         print()

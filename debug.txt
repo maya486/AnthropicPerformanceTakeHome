@@ -1,1 +1,0 @@
-forest_height=10, rounds=16, num_walkers=256

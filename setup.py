@@ -9,13 +9,11 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     b0s = []
     b1s = []
     tmp2s = []
-    # for p in range(num_phases):
     for p in range(NUM_GROUPS):
         tmp1s.append([])
         tmp2s.append([])
         b0s.append([])
         b1s.append([])
-        # for walker_group_idx in range(group_size//VLEN):
         for walker_group_idx in range(GROUP_VECS[p]):
             tmp1s[p].append(alloc_scratch(None, VLEN))
             tmp2s[p].append(alloc_scratch(None, VLEN))
@@ -36,7 +34,7 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     # 5: "inp_indices_p",
     # 6: "inp_values_p",
 
-    # Scratch space addresses
+    # scratch space addresses
     init_vars = [
         "forest_values_p",
         "inp_indices_p",
@@ -55,7 +53,6 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     forest_values = alloc_scratch(init_vars_scratch[0], VLEN)
     setup.append(("valu", ("vbroadcast", forest_values, init_vars_scratch[0])))
 
-    # tmp_scalar_const_8 = scratch_const(setup, 8)
     tmp_scalar_const_8 = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_8, tmp_scalar_const_zero, 8)))
 
@@ -93,7 +90,6 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     setup.append(("valu", ("vbroadcast", const_v15, tmp1s[0][1]+6)))
 
 
-
     walker_idxs = []
     for walker_idx in range(0, num_walkers, CHUNK_SIZE):
         walker_idx_idx = (int)(walker_idx/(CHUNK_SIZE))
@@ -101,15 +97,9 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
         for p in range(NUM_GROUPS):
             walker_idxs[walker_idx_idx].append([])
             for i in range(GROUP_VECS[p]):
+
                 walker_idxs[walker_idx_idx][p].append(alloc_scratch(None, 1))
-
                 tmp = scratch_const(setup, GROUPS_PREFIX_SUM[p]+walker_idx+VLEN*i)
-
-                # tmp = alloc_scratch()
-
-                # setup.append(("flow", ("add_imm", tmp, tmp_scalar_const_zero, GROUPS_PREFIX_SUM[p]+walker_idx+VLEN*i)))
-
-                # values
                 setup.append(("alu", ("+", walker_idxs[walker_idx_idx][p][i], init_vars_scratch[2], tmp)))
 
 
@@ -117,13 +107,10 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
 
     const_one = alloc_scratch(1, VLEN)
     const_two = alloc_scratch(2, VLEN)
-    # const_three = alloc_scratch(3, VLEN)
     const_four = alloc_scratch(4, VLEN)
-    # const_five = alloc_scratch(5, VLEN)
     const_seven = alloc_scratch(5, VLEN)
     const_nine = alloc_scratch(9, VLEN)
     const_eleven = alloc_scratch(11, VLEN)
-    # const_twelve = alloc_scratch(12, VLEN)
     const_thirteen = alloc_scratch(13, VLEN)
     const_sixteen = alloc_scratch(16, VLEN)
     const_nineteen = alloc_scratch(19, VLEN)
@@ -136,55 +123,36 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     const_v3_minus_v2 = alloc_scratch("v3_minus_v2", VLEN) # fvo = forest_value_offset
 
 
-    # tmp_scalar_const_one = scratch_const(setup, 1)
     tmp_scalar_const_one = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_one, tmp_scalar_const_zero, 1)))
-
-    # tmp_scalar_const_two = scratch_const(setup, 2)
     tmp_scalar_const_two = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_two, tmp_scalar_const_zero, 2)))
-    # tmp_scalar_const_three = scratch_const(setup, 3)
-    # tmp_scalar_const_four = scratch_const(setup, 4)
     tmp_scalar_const_four = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_four, tmp_scalar_const_zero, 4)))
-    # tmp_scalar_const_five = scratch_const(setup, 5)
-    # tmp_scalar_const_seven = scratch_const(setup, 7)
     tmp_scalar_const_seven = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_seven, tmp_scalar_const_zero, 7)))
-    # tmp_scalar_const_nine = scratch_const(setup, 9)
     tmp_scalar_const_nine = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_nine, tmp_scalar_const_zero, 9)))
-    # tmp_scalar_const_eleven = scratch_const(setup, 11)
     tmp_scalar_const_eleven = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_eleven, tmp_scalar_const_zero, 11)))
-    # tmp_scalar_const_twelve = scratch_const(setup, 12)
-    # tmp_scalar_const_thirteen = scratch_const(setup, 13)
     tmp_scalar_const_thirteen = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_thirteen, tmp_scalar_const_zero, 13)))
-    # tmp_scalar_const_sixteen = scratch_const(setup, 16)
     tmp_scalar_const_sixteen = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_sixteen, tmp_scalar_const_zero, 16)))
-    # tmp_scalar_const_nineteen = scratch_const(setup, 19)
     tmp_scalar_const_nineteen = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_nineteen, tmp_scalar_const_zero, 19)))
-    # tmp_scalar_const_4096 = scratch_const(setup, 4096)
     tmp_scalar_const_4096 = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_4096, tmp_scalar_const_zero, 4096)))
-    # tmp_scalar_const_32 = scratch_const(setup, 32)
     tmp_scalar_const_32 = alloc_scratch()
     setup.append(("flow", ("add_imm", tmp_scalar_const_32, tmp_scalar_const_zero, 32)))
 
 
-
     setup.append(("valu", ("vbroadcast", const_one, tmp_scalar_const_one)))
     setup.append(("valu", ("vbroadcast", const_two, tmp_scalar_const_two)))
-    # setup.append(("valu", ("vbroadcast", const_three, tmp_scalar_const_three)))
     setup.append(("valu", ("vbroadcast", const_four, tmp_scalar_const_four)))
-    # setup.append(("valu", ("vbroadcast", const_five, tmp_scalar_const_five)))
     setup.append(("valu", ("vbroadcast", const_seven, tmp_scalar_const_seven)))
     setup.append(("valu", ("vbroadcast", const_nine, tmp_scalar_const_nine)))
     setup.append(("valu", ("vbroadcast", const_eleven, tmp_scalar_const_eleven)))
-    # setup.append(("valu", ("vbroadcast", const_twelve, tmp_scalar_const_twelve)))
     setup.append(("valu", ("vbroadcast", const_thirteen, tmp_scalar_const_thirteen)))
     setup.append(("valu", ("vbroadcast", const_sixteen, tmp_scalar_const_sixteen)))
     setup.append(("valu", ("vbroadcast", const_nineteen, tmp_scalar_const_nineteen)))
@@ -193,18 +161,15 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     setup.append(("valu", ("vbroadcast", const_8, tmp_scalar_const_8)))
 
 
-
     tmp_vals = []
     tmp_node_vals = []
     tmp_addrs = []
     tmp_val_paritys = []
-    # for p in range(num_phases):
     for p in range(NUM_GROUPS):
         tmp_vals.append([])
         tmp_node_vals.append([])
         tmp_addrs.append([])
         tmp_val_paritys.append([])
-        # for walker_group_idx in range(group_size//VLEN):
         for walker_group_idx in range(GROUP_VECS[p]):
             tmp_vals[p].append(alloc_scratch(None, VLEN))
             tmp_node_vals[p].append(alloc_scratch(None, VLEN))
@@ -218,22 +183,16 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     tmp_0xFD7046C5 = alloc_scratch("tmp_0xFD7046C5", VLEN)
     tmp_0xB55A4F09 = alloc_scratch("tmp_0xB55A4F09", VLEN)
 
-    # const_0x7ED55D16 = scratch_const(setup, 0x7ED55D16)
     const_0x7ED55D16 = alloc_scratch()
     setup.append(("flow", ("add_imm", const_0x7ED55D16, tmp_scalar_const_zero, 0x7ED55D16)))
-    # const_0xC761C23C = scratch_const(setup, 0xC761C23C)
     const_0xC761C23C = alloc_scratch()
     setup.append(("flow", ("add_imm", const_0xC761C23C, tmp_scalar_const_zero, 0xC761C23C)))
-    # const_0x165667B1 = scratch_const(setup, 0x165667B1)
     const_0x165667B1 = alloc_scratch()
     setup.append(("flow", ("add_imm", const_0x165667B1, tmp_scalar_const_zero, 0x165667B1)))
-    # const_0xD3A2646C = scratch_const(setup, 0xD3A2646C)
     const_0xD3A2646C = alloc_scratch()
     setup.append(("flow", ("add_imm", const_0xD3A2646C, tmp_scalar_const_zero, 0xD3A2646C)))
-    # const_0xFD7046C5 = scratch_const(setup, 0xFD7046C5)
     const_0xFD7046C5 = alloc_scratch()
     setup.append(("flow", ("add_imm", const_0xFD7046C5, tmp_scalar_const_zero, 0xFD7046C5)))
-    # const_0xB55A4F09 = scratch_const(setup, 0xB55A4F09)
     const_0xB55A4F09 = alloc_scratch()
     setup.append(("flow", ("add_imm", const_0xB55A4F09, tmp_scalar_const_zero, 0xB55A4F09)))
 
@@ -243,7 +202,6 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
     setup.append(("valu", ("vbroadcast", tmp_0xD3A2646C, const_0xD3A2646C)))
     setup.append(("valu", ("vbroadcast", tmp_0xFD7046C5, const_0xFD7046C5)))
     setup.append(("valu", ("vbroadcast", tmp_0xB55A4F09, const_0xB55A4F09)))
-
 
 
     setup.append(("valu", ("-", const_1_minus_fvo, const_one, forest_values)))
@@ -256,7 +214,6 @@ def setup_scratch(alloc_scratch, scratch_const, num_walkers):
         "1": const_one,
         "2": const_two,
         "4": const_four,
-        # "7": const_seven,
         "8": const_8,
         "9": const_nine,
         "11": const_eleven,

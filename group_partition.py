@@ -1,4 +1,3 @@
-
 GROUPS = [16, 16, 16, 16, 16, 16, 16, 16]
 GROUP_VECS = [2, 2, 2, 2, 2, 2, 2, 2]
 NUM_GROUPS = len(GROUPS)
